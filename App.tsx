@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from './services/firebase';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import AIInsights from './components/AIInsights';
+import Login from './components/Login';
 import { Note, MoodEntry } from './types';
 import { analyzeJournalEntry, continueWriting } from './services/geminiService';
 
@@ -10,6 +13,8 @@ const STORAGE_KEY = 'atheria-journal-notes';
 const LEGACY_STORAGE_KEY = 'serenity-journal-notes';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,10 +23,19 @@ const App: React.FC = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
   const [showInsights, setShowInsights] = useState(true);
-  
+
   // Sorting State
   const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'title'>('updatedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Load notes from local storage on mount
   useEffect(() => {
@@ -112,7 +126,7 @@ const App: React.FC = () => {
     setIsAnalyzing(true);
     try {
       const result = await analyzeJournalEntry(currentNote.content);
-      
+
       const newMoodEntry: MoodEntry = {
         mood: result.mood,
         score: result.moodScore,
@@ -120,8 +134,8 @@ const App: React.FC = () => {
         timestamp: Date.now()
       };
 
-      const updatedHistory = currentNote.moodHistory 
-        ? [...currentNote.moodHistory, newMoodEntry] 
+      const updatedHistory = currentNote.moodHistory
+        ? [...currentNote.moodHistory, newMoodEntry]
         : [newMoodEntry];
 
       updateNote({
@@ -175,10 +189,10 @@ const App: React.FC = () => {
   const sortedFilteredNotes = useMemo(() => {
     // First filter
     const filtered = notes.filter(note => {
-      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+
       const matchesMood = moodFilter ? note.mood === moodFilter : true;
       const matchesFavorite = showFavorites ? note.isFavorite : true;
 
@@ -207,9 +221,24 @@ const App: React.FC = () => {
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
+  if (authLoading) {
+    return (
+      <div className="flex h-screen w-screen bg-stone-50 items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="w-12 h-12 rounded-full bg-stone-200 mb-4"></div>
+          <div className="h-4 w-32 bg-stone-200 rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <div className="flex h-screen w-screen bg-stone-50 text-stone-900 font-sans overflow-hidden">
-      <Sidebar 
+      <Sidebar
         notes={sortedFilteredNotes}
         selectedNoteId={selectedNoteId}
         onSelectNote={setSelectedNoteId}
@@ -228,10 +257,10 @@ const App: React.FC = () => {
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
       />
-      
+
       {selectedNote ? (
         <div className="flex-1 flex flex-row relative h-full">
-          <Editor 
+          <Editor
             note={selectedNote}
             onChange={updateNote}
             onAnalyze={handleAIAnalyze}
@@ -240,7 +269,7 @@ const App: React.FC = () => {
             isContinuing={isContinuing}
           />
           <div className="hidden lg:block h-full">
-            <AIInsights 
+            <AIInsights
               note={selectedNote}
               isOpen={showInsights}
               onClose={() => setShowInsights(false)}

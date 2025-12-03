@@ -2,6 +2,9 @@ import React, { useMemo } from 'react';
 import { Note } from '../types';
 import { PlusIcon, SearchIcon, TrashIcon, FlameIcon, StarIcon, SunIcon, MoonIcon, CloudIcon, ZapIcon, HeartIcon, ArrowUpIcon, ArrowDownIcon } from './Icons';
 
+import { User, signOut } from 'firebase/auth';
+import { auth } from '../services/firebase';
+
 interface SidebarProps {
   notes: Note[];
   selectedNoteId: string | null;
@@ -20,39 +23,40 @@ interface SidebarProps {
   onSortByChange: (value: 'createdAt' | 'updatedAt' | 'title') => void;
   sortOrder: 'asc' | 'desc';
   onSortOrderChange: (value: 'asc' | 'desc') => void;
+  user: User | null;
 }
 
 const getMoodIcon = (mood: string, className: string, style: React.CSSProperties) => {
   const m = mood.toLowerCase();
-  
+
   // Happy / Positive
   if (['happy', 'joy', 'excited', 'optimistic', 'positive', 'great', 'good', 'radiant', 'sunny', 'cheerful'].some(k => m.includes(k))) {
     return <SunIcon className={className} style={style} />;
   }
-  
+
   // Sad / Gloomy
   if (['sad', 'gloomy', 'melancholy', 'depressed', 'negative', 'cry', 'lonely', 'grief', 'down', 'rain'].some(k => m.includes(k))) {
     return <CloudIcon className={className} style={style} />;
   }
-  
+
   // Calm / Peaceful
   if (['calm', 'peaceful', 'relaxed', 'chill', 'content', 'quiet', 'sleepy', 'tired', 'rest', 'zen'].some(k => m.includes(k))) {
     return <MoonIcon className={className} style={style} />;
   }
-  
+
   // Energetic / Intense / Negative High Energy
   if (['angry', 'frustrated', 'anxious', 'stress', 'nervous', 'mad', 'energy', 'power', 'intense'].some(k => m.includes(k))) {
     return <ZapIcon className={className} style={style} />;
   }
-  
+
   // Love / Gratitude
   if (['love', 'grateful', 'thankful', 'blessed', 'heart', 'kind', 'romantic', 'appreciate'].some(k => m.includes(k))) {
     return <HeartIcon className={className} style={style} />;
   }
-  
+
   // Fallback (use a simple circle if no match, essentially the old dot but as an SVG for consistency in alignment)
   return (
-    <div 
+    <div
       className={`rounded-full shadow-sm transition-colors duration-300 ${className.replace('w-4 h-4', 'w-2.5 h-2.5')}`}
       style={style}
     />
@@ -76,7 +80,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   sortBy,
   onSortByChange,
   sortOrder,
-  onSortOrderChange
+  onSortOrderChange,
+  user
 }) => {
   // Calculate Streak
   const streak = useMemo(() => {
@@ -119,16 +124,20 @@ const Sidebar: React.FC<SidebarProps> = ({
     }).format(new Date(timestamp));
   };
 
+  const handleSignOut = () => {
+    signOut(auth).catch(error => console.error("Error signing out", error));
+  };
+
   return (
     <div className="w-full md:w-80 bg-stone-50 border-r border-stone-200 h-full flex flex-col flex-shrink-0 transition-all duration-300">
       <div className="p-6 border-b border-stone-200 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-serif font-bold text-stone-800 tracking-tight">Atheria</h1>
-          
+
           <div className="flex items-center gap-2">
             {streak > 0 && (
-              <div 
-                className="flex items-center gap-1.5 bg-orange-50 text-orange-600 px-2.5 py-1.5 rounded-full text-xs font-bold border border-orange-100 shadow-sm cursor-help transition-all hover:bg-orange-100" 
+              <div
+                className="flex items-center gap-1.5 bg-orange-50 text-orange-600 px-2.5 py-1.5 rounded-full text-xs font-bold border border-orange-100 shadow-sm cursor-help transition-all hover:bg-orange-100"
                 title={`${streak} day streak! Keep it up.`}
               >
                 <FlameIcon className="w-3.5 h-3.5 fill-orange-500" />
@@ -144,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
         </div>
-        
+
         <div className="relative group mb-3">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-stone-600 transition-colors" />
           <input
@@ -179,44 +188,41 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleFavoritesFilter}
+            className={`p-1.5 rounded-full border transition-all ${showFavorites
+                ? 'bg-amber-100 border-amber-200 text-amber-500'
+                : 'bg-white border-stone-200 text-stone-400 hover:text-amber-500 hover:border-amber-200'
+              }`}
+            title={showFavorites ? "Show all notes" : "Show favorites only"}
+          >
+            <StarIcon className="w-4 h-4" filled={showFavorites} />
+          </button>
+          <div className="h-6 w-px bg-stone-200 mx-1"></div>
+
+          <div className="flex-1 overflow-x-auto pb-1 -my-1 custom-scrollbar flex gap-2">
             <button
-                onClick={onToggleFavoritesFilter}
-                className={`p-1.5 rounded-full border transition-all ${
-                    showFavorites
-                    ? 'bg-amber-100 border-amber-200 text-amber-500'
-                    : 'bg-white border-stone-200 text-stone-400 hover:text-amber-500 hover:border-amber-200'
+              onClick={() => onMoodFilterChange(null)}
+              className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all ${moodFilter === null
+                  ? 'bg-stone-800 text-white border-stone-800'
+                  : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
                 }`}
-                title={showFavorites ? "Show all notes" : "Show favorites only"}
             >
-                <StarIcon className="w-4 h-4" filled={showFavorites} />
+              All
             </button>
-            <div className="h-6 w-px bg-stone-200 mx-1"></div>
-            
-            <div className="flex-1 overflow-x-auto pb-1 -my-1 custom-scrollbar flex gap-2">
-                <button
-                    onClick={() => onMoodFilterChange(null)}
-                    className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                        moodFilter === null
-                        ? 'bg-stone-800 text-white border-stone-800'
-                        : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
-                    }`}
-                >
-                    All
-                </button>
-                {availableMoods.map(mood => (
-                    <button
-                        key={mood}
-                        onClick={() => onMoodFilterChange(mood === moodFilter ? null : mood)}
-                        className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all capitalize ${
-                            moodFilter === mood
-                            ? 'bg-stone-800 text-white border-stone-800'
-                            : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
-                        }`}
-                    >
-                        {mood}
-                    </button>
-                ))}
-            </div>
+            {availableMoods.map(mood => (
+              <button
+                key={mood}
+                onClick={() => onMoodFilterChange(mood === moodFilter ? null : mood)}
+                className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all capitalize ${moodFilter === mood
+                    ? 'bg-stone-800 text-white border-stone-800'
+                    : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
+                  }`}
+              >
+                {mood}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -225,11 +231,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="text-center py-12">
             <p className="text-stone-400 text-sm font-medium">No journals found.</p>
             <p className="text-stone-300 text-xs mt-1">
-                {showFavorites 
-                    ? 'No favorite moments yet.'
-                    : moodFilter 
-                        ? `No ${moodFilter} moments yet.` 
-                        : 'Start writing your story.'}
+              {showFavorites
+                ? 'No favorite moments yet.'
+                : moodFilter
+                  ? `No ${moodFilter} moments yet.`
+                  : 'Start writing your story.'}
             </p>
           </div>
         ) : (
@@ -244,28 +250,26 @@ const Sidebar: React.FC<SidebarProps> = ({
               <div
                 key={note.id}
                 onClick={() => onSelectNote(note.id)}
-                className={`group relative p-4 rounded-xl cursor-pointer border transition-all duration-200 ${
-                  selectedNoteId === note.id
+                className={`group relative p-4 rounded-xl cursor-pointer border transition-all duration-200 ${selectedNoteId === note.id
                     ? 'bg-white border-stone-300 shadow-md ring-1 ring-stone-100'
                     : 'bg-transparent border-transparent hover:bg-white hover:border-stone-200'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2 mb-1 pr-16">
                   {moodText && moodColor && (
-                     <div title={`Mood: ${moodText}`}>
-                         {getMoodIcon(moodText, "w-4 h-4 flex-shrink-0 opacity-80", { color: moodColor, fill: moodColor, fillOpacity: 0.1 })}
-                     </div>
+                    <div title={`Mood: ${moodText}`}>
+                      {getMoodIcon(moodText, "w-4 h-4 flex-shrink-0 opacity-80", { color: moodColor, fill: moodColor, fillOpacity: 0.1 })}
+                    </div>
                   )}
                   {!moodText && moodColor && (
-                     <div 
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm" 
-                        style={{ backgroundColor: moodColor }}
-                      />
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0 shadow-sm"
+                      style={{ backgroundColor: moodColor }}
+                    />
                   )}
-                  
-                  <h3 className={`font-medium truncate ${
-                    selectedNoteId === note.id ? 'text-stone-800' : 'text-stone-600'
-                  }`}>
+
+                  <h3 className={`font-medium truncate ${selectedNoteId === note.id ? 'text-stone-800' : 'text-stone-600'
+                    }`}>
                     {note.title || 'Untitled Entry'}
                   </h3>
                 </div>
@@ -290,16 +294,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Mood indicator text badge */}
                 {note.mood && (
-                  <div 
+                  <div
                     className="absolute top-4 right-4 text-[10px] uppercase font-bold tracking-wide px-2 py-0.5 rounded-full opacity-90 border transition-all duration-300"
-                    style={ moodColor ? { 
-                        backgroundColor: `${moodColor}15`, // ~10% opacity
-                        color: moodColor,
-                        borderColor: `${moodColor}30`
-                    } : { 
-                        backgroundColor: '#fff1f2', 
-                        color: '#e11d48',
-                        borderColor: '#fecdd3'
+                    style={moodColor ? {
+                      backgroundColor: `${moodColor}15`, // ~10% opacity
+                      color: moodColor,
+                      borderColor: `${moodColor}30`
+                    } : {
+                      backgroundColor: '#fff1f2',
+                      color: '#e11d48',
+                      borderColor: '#fecdd3'
                     }}
                   >
                     {note.mood}
@@ -308,33 +312,59 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Action Buttons */}
                 <div className="absolute bottom-4 right-4 flex items-center gap-1">
-                    <button
-                        onClick={(e) => onToggleFavorite(note.id, e)}
-                        className={`p-1.5 rounded-lg transition-all ${
-                            note.isFavorite 
-                            ? 'text-amber-500 opacity-100' 
-                            : `text-stone-300 hover:text-amber-400 ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`
-                        }`}
-                        title={note.isFavorite ? "Remove from favorites" : "Add to favorites"}
-                    >
-                        <StarIcon className="w-4 h-4" filled={note.isFavorite} />
-                    </button>
-                    
-                    <button
-                        onClick={(e) => onDeleteNote(note.id, e)}
-                        className={`p-1.5 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ${
-                            selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                        }`}
-                        title="Delete journal"
-                    >
-                        <TrashIcon className="w-4 h-4" />
-                    </button>
+                  <button
+                    onClick={(e) => onToggleFavorite(note.id, e)}
+                    className={`p-1.5 rounded-lg transition-all ${note.isFavorite
+                        ? 'text-amber-500 opacity-100'
+                        : `text-stone-300 hover:text-amber-400 ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`
+                      }`}
+                    title={note.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  >
+                    <StarIcon className="w-4 h-4" filled={note.isFavorite} />
+                  </button>
+
+                  <button
+                    onClick={(e) => onDeleteNote(note.id, e)}
+                    className={`p-1.5 text-stone-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
+                    title="Delete journal"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      {/* User Profile Footer */}
+      {user && (
+        <div className="p-4 border-t border-stone-200 bg-stone-50">
+          <div className="flex items-center gap-3">
+            {user.photoURL ? (
+              <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 rounded-full border border-stone-200" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 font-bold">
+                {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-stone-700 truncate">{user.displayName || 'User'}</p>
+              <p className="text-xs text-stone-400 truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-200 rounded-lg transition-colors"
+              title="Sign Out"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
