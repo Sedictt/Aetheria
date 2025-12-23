@@ -24,6 +24,29 @@ const App: React.FC = () => {
   const [isContinuing, setIsContinuing] = useState(false);
   const [showInsights, setShowInsights] = useState(true);
 
+  // Theme State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Check local storage or system preference
+    const savedTheme = localStorage.getItem('atheria-theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  // Apply theme class
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('atheria-theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('atheria-theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
   // Sorting State
   const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'title'>('updatedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -223,10 +246,10 @@ const App: React.FC = () => {
 
   if (authLoading) {
     return (
-      <div className="flex h-screen w-screen bg-stone-50 items-center justify-center">
+      <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
-          <div className="w-12 h-12 rounded-full bg-stone-200 mb-4"></div>
-          <div className="h-4 w-32 bg-stone-200 rounded"></div>
+          <div className="w-12 h-12 rounded-full bg-stone-200 dark:bg-stone-800 mb-4"></div>
+          <div className="h-4 w-32 bg-stone-200 dark:bg-stone-800 rounded"></div>
         </div>
       </div>
     );
@@ -237,7 +260,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-stone-50 text-stone-900 font-sans overflow-hidden">
+    <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans overflow-hidden transition-colors duration-300">
       <Sidebar
         notes={sortedFilteredNotes}
         selectedNoteId={selectedNoteId}
@@ -256,6 +279,9 @@ const App: React.FC = () => {
         onSortByChange={setSortBy}
         sortOrder={sortOrder}
         onSortOrderChange={setSortOrder}
+        user={user}
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
       />
 
       {selectedNote ? (
@@ -278,15 +304,15 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white text-stone-300">
-          <div className="w-24 h-24 mb-6 rounded-full bg-stone-50 flex items-center justify-center">
+        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 text-stone-300 dark:text-stone-600 transition-colors duration-300">
+          <div className="w-24 h-24 mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center transition-colors duration-300">
             <span className="text-4xl">✒️</span>
-          </div>
-          <h2 className="text-2xl font-serif text-stone-800 mb-2">Atheria</h2>
-          <p className="max-w-md text-center text-stone-500">Select a journal from the sidebar or create a new one to start reflecting.</p>
-        </div>
+          </div >
+          <h2 className="text-2xl font-serif text-stone-800 dark:text-stone-200 mb-2">Atheria</h2>
+          <p className="max-w-md text-center text-stone-500 dark:text-stone-400">Select a journal from the sidebar or create a new one to start reflecting.</p>
+        </div >
       )}
-    </div>
+    </div >
   );
 };
 

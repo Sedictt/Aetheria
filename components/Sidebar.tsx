@@ -23,7 +23,10 @@ interface SidebarProps {
   onSortByChange: (value: 'createdAt' | 'updatedAt' | 'title') => void;
   sortOrder: 'asc' | 'desc';
   onSortOrderChange: (value: 'asc' | 'desc') => void;
+
   user: User | null;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
 }
 
 const getMoodIcon = (mood: string, className: string, style: React.CSSProperties) => {
@@ -81,7 +84,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSortByChange,
   sortOrder,
   onSortOrderChange,
-  user
+
+  user,
+  isDarkMode,
+  toggleTheme
 }) => {
   // Calculate Streak
   const streak = useMemo(() => {
@@ -129,10 +135,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="w-full md:w-80 bg-stone-50 border-r border-stone-200 h-full flex flex-col flex-shrink-0 transition-all duration-300">
-      <div className="p-6 border-b border-stone-200 bg-white/50 backdrop-blur-sm sticky top-0 z-10">
+    <div className="w-full md:w-80 bg-stone-50 dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 h-full flex flex-col flex-shrink-0 transition-all duration-300">
+      <div className="p-6 border-b border-stone-200 dark:border-stone-800 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-serif font-bold text-stone-800 tracking-tight">Atheria</h1>
+          <h1 className="text-xl font-serif font-bold text-stone-800 dark:text-stone-100 tracking-tight">Atheria</h1>
 
           <div className="flex items-center gap-2">
             {streak > 0 && (
@@ -161,7 +167,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             placeholder="Search journals..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-white border border-stone-200 rounded-xl text-sm text-stone-700 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200 focus:border-stone-300 transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-xl text-sm text-stone-700 dark:text-stone-200 placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-200 dark:focus:ring-stone-600 focus:border-stone-300 dark:focus:border-stone-500 transition-all"
           />
         </div>
 
@@ -171,11 +177,11 @@ const Sidebar: React.FC<SidebarProps> = ({
             <select
               value={sortBy}
               onChange={(e) => onSortByChange(e.target.value as any)}
-              className="bg-transparent border-none outline-none font-medium text-stone-600 cursor-pointer hover:text-stone-900 focus:ring-0 p-0 text-[11px]"
+              className="bg-transparent border-none outline-none font-medium text-stone-600 dark:text-stone-400 cursor-pointer hover:text-stone-900 dark:hover:text-stone-200 focus:ring-0 p-0 text-[11px]"
             >
-              <option value="updatedAt">Last Updated</option>
-              <option value="createdAt">Created Date</option>
-              <option value="title">Title</option>
+              <option value="updatedAt" className="dark:bg-stone-800">Last Updated</option>
+              <option value="createdAt" className="dark:bg-stone-800">Created Date</option>
+              <option value="title" className="dark:bg-stone-800">Title</option>
             </select>
           </div>
           <button
@@ -191,8 +197,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button
             onClick={onToggleFavoritesFilter}
             className={`p-1.5 rounded-full border transition-all ${showFavorites
-                ? 'bg-amber-100 border-amber-200 text-amber-500'
-                : 'bg-white border-stone-200 text-stone-400 hover:text-amber-500 hover:border-amber-200'
+              ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800/50 text-amber-500'
+              : 'bg-white dark:bg-stone-800 border-stone-200 dark:border-stone-700 text-stone-400 hover:text-amber-500 hover:border-amber-200 dark:hover:border-amber-800'
               }`}
             title={showFavorites ? "Show all notes" : "Show favorites only"}
           >
@@ -204,8 +210,8 @@ const Sidebar: React.FC<SidebarProps> = ({
             <button
               onClick={() => onMoodFilterChange(null)}
               className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all ${moodFilter === null
-                  ? 'bg-stone-800 text-white border-stone-800'
-                  : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
+                ? 'bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 border-stone-800 dark:border-stone-100'
+                : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-stone-300'
                 }`}
             >
               All
@@ -215,8 +221,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 key={mood}
                 onClick={() => onMoodFilterChange(mood === moodFilter ? null : mood)}
                 className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium border transition-all capitalize ${moodFilter === mood
-                    ? 'bg-stone-800 text-white border-stone-800'
-                    : 'bg-white text-stone-600 border-stone-200 hover:border-stone-300'
+                  ? 'bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 border-stone-800 dark:border-stone-100'
+                  : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200 dark:border-stone-700 hover:border-stone-300'
                   }`}
               >
                 {mood}
@@ -251,8 +257,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                 key={note.id}
                 onClick={() => onSelectNote(note.id)}
                 className={`group relative p-4 rounded-xl cursor-pointer border transition-all duration-200 ${selectedNoteId === note.id
-                    ? 'bg-white border-stone-300 shadow-md ring-1 ring-stone-100'
-                    : 'bg-transparent border-transparent hover:bg-white hover:border-stone-200'
+                  ? 'bg-white dark:bg-stone-800 border-stone-300 dark:border-stone-600 shadow-md ring-1 ring-stone-100 dark:ring-stone-700'
+                  : 'bg-transparent border-transparent hover:bg-white dark:hover:bg-stone-800 hover:border-stone-200 dark:hover:border-stone-700'
                   }`}
               >
                 <div className="flex items-center gap-2 mb-1 pr-16">
@@ -268,7 +274,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     />
                   )}
 
-                  <h3 className={`font-medium truncate ${selectedNoteId === note.id ? 'text-stone-800' : 'text-stone-600'
+                  <h3 className={`font-medium truncate ${selectedNoteId === note.id ? 'text-stone-800 dark:text-stone-100' : 'text-stone-600 dark:text-stone-400'
                     }`}>
                     {note.title || 'Untitled Entry'}
                   </h3>
@@ -277,7 +283,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <p className="text-xs text-stone-400 mb-2 font-mono">
                   {formatDate(note.updatedAt)}
                 </p>
-                <p className="text-sm text-stone-500 line-clamp-2 h-10 font-serif leading-relaxed opacity-80">
+                <p className="text-sm text-stone-500 dark:text-stone-400 line-clamp-2 h-10 font-serif leading-relaxed opacity-80">
                   {note.content || 'Empty note...'}
                 </p>
 
@@ -285,7 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {note.tags && note.tags.length > 0 && (
                   <div className="flex gap-1 mt-3 flex-wrap">
                     {note.tags.slice(0, 2).map((tag, i) => (
-                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">
+                      <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-300">
                         #{tag}
                       </span>
                     ))}
@@ -315,8 +321,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     onClick={(e) => onToggleFavorite(note.id, e)}
                     className={`p-1.5 rounded-lg transition-all ${note.isFavorite
-                        ? 'text-amber-500 opacity-100'
-                        : `text-stone-300 hover:text-amber-400 ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`
+                      ? 'text-amber-500 opacity-100'
+                      : `text-stone-300 hover:text-amber-400 ${selectedNoteId === note.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`
                       }`}
                     title={note.isFavorite ? "Remove from favorites" : "Add to favorites"}
                   >
@@ -340,22 +346,32 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* User Profile Footer */}
       {user && (
-        <div className="p-4 border-t border-stone-200 bg-stone-50">
+        <div className="p-4 border-t border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-900">
           <div className="flex items-center gap-3">
             {user.photoURL ? (
               <img src={user.photoURL} alt={user.displayName || "User"} className="w-8 h-8 rounded-full border border-stone-200" />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-stone-500 font-bold">
+
+              <div className="w-8 h-8 rounded-full bg-stone-200 dark:bg-stone-700 flex items-center justify-center text-stone-500 dark:text-stone-300 font-bold">
                 {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-stone-700 truncate">{user.displayName || 'User'}</p>
+              <p className="text-sm font-medium text-stone-700 dark:text-stone-200 truncate">{user.displayName || 'User'}</p>
               <p className="text-xs text-stone-400 truncate">{user.email}</p>
             </div>
+
+            <button
+              onClick={toggleTheme}
+              className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-lg transition-colors"
+              title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {isDarkMode ? <SunIcon className="w-5 h-5" /> : <MoonIcon className="w-5 h-5" />}
+            </button>
+
             <button
               onClick={handleSignOut}
-              className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-200 rounded-lg transition-colors"
+              className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-200 dark:hover:bg-stone-800 rounded-lg transition-colors"
               title="Sign Out"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
