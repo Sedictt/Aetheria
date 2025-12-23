@@ -3,13 +3,13 @@ import { getAnalytics } from "firebase/analytics";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCkBhPCkP-6oFHyZDKPX_CT6OeMn2FzO2Q",
-  authDomain: "aetheria-4a391.firebaseapp.com",
-  projectId: "aetheria-4a391",
-  storageBucket: "aetheria-4a391.firebasestorage.app",
-  messagingSenderId: "910312544469",
-  appId: "1:910312544469:web:504b02a6352c7862fdea5c",
-  measurementId: "G-HD507YE6S5"
+  apiKey: "AIzaSyAsmt55YUAfJnX02bWFnbNN5ejpUw3rVVc",
+  authDomain: "aetheria-journal.firebaseapp.com",
+  projectId: "aetheria-journal",
+  storageBucket: "aetheria-journal.firebasestorage.app",
+  messagingSenderId: "560684494870",
+  appId: "1:560684494870:web:32d3640a0e2ed718778537",
+  measurementId: "G-2MVZ7Q0BXD"
 };
 
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
