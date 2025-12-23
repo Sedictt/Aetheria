@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Note } from '../types';
 import { SparklesIcon, PenIcon } from './Icons';
 
@@ -16,6 +16,7 @@ const Editor: React.FC<EditorProps> = ({
   isContinuing,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [isEditingDate, setIsEditingDate] = useState(false);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -25,17 +26,52 @@ const Editor: React.FC<EditorProps> = ({
     }
   }, [note.content]);
 
+  const formatDateForInput = (timestamp: number) => {
+    const d = new Date(timestamp);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.value) return;
+    const parts = e.target.value.split('-');
+    const newDate = new Date(note.createdAt);
+    // Preserve time, only change date
+    newDate.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    onChange({ createdAt: newDate.getTime() });
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-stone-900 relative flex flex-col transition-colors duration-300">
       <div className="max-w-3xl mx-auto w-full px-8 py-12 flex-1 flex flex-col">
         {/* Date Header */}
-        <div className="text-stone-400 dark:text-stone-500 text-sm font-mono mb-4">
-          {new Date(note.createdAt).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })}
+        <div className="text-stone-400 dark:text-stone-500 text-sm font-mono mb-4 h-6 flex items-center">
+          {isEditingDate ? (
+            <input
+              type="date"
+              autoFocus
+              value={formatDateForInput(note.createdAt)}
+              onChange={handleDateChange}
+              onBlur={() => setIsEditingDate(false)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingDate(false)}
+              className="bg-transparent border-none outline-none font-mono text-stone-600 dark:text-stone-300 p-0"
+            />
+          ) : (
+            <span
+              onClick={() => setIsEditingDate(true)}
+              className="cursor-pointer hover:text-stone-600 dark:hover:text-stone-300 transition-colors border-b border-transparent hover:border-stone-300 dark:hover:border-stone-600"
+              title="Click to edit date"
+            >
+              {new Date(note.createdAt).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </span>
+          )}
         </div>
 
         {/* Title Input */}

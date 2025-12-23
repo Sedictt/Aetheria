@@ -158,6 +158,28 @@ const App: React.FC = () => {
     setSortOrder('desc');
   };
 
+  const importNote = (title: string, content: string, date: number) => {
+    const newNote: Note = {
+      id: uuidv4(),
+      title: title,
+      content: content,
+      createdAt: date,
+      updatedAt: Date.now(),
+      tags: [],
+      isFavorite: false,
+    };
+
+    setNotes(prev => [newNote, ...prev]);
+    saveNoteToFirestore(newNote);
+
+    setSelectedNoteId(newNote.id);
+    setSearchTerm('');
+    setMoodFilter(null);
+    setShowFavorites(false);
+    setSortBy('createdAt');
+    setSortOrder('desc');
+  };
+
   const updateNote = useCallback((updates: Partial<Note>) => {
     if (!selectedNoteId) return;
 
@@ -296,6 +318,7 @@ const App: React.FC = () => {
         selectedNoteId={selectedNoteId}
         onSelectNote={setSelectedNoteId}
         onAddNote={createNote}
+        onImportNote={importNote}
         onDeleteNote={deleteNote}
         onToggleFavorite={toggleFavorite}
         searchTerm={searchTerm}

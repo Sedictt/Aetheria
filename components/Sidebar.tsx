@@ -1,15 +1,17 @@
 import React, { useMemo } from 'react';
 import { Note } from '../types';
-import { PlusIcon, SearchIcon, TrashIcon, FlameIcon, StarIcon, SunIcon, MoonIcon, CloudIcon, ZapIcon, HeartIcon, ArrowUpIcon, ArrowDownIcon } from './Icons';
+import { PlusIcon, SearchIcon, TrashIcon, FlameIcon, StarIcon, SunIcon, MoonIcon, CloudIcon, ZapIcon, HeartIcon, ArrowUpIcon, ArrowDownIcon, UploadIcon } from './Icons';
 
 import { User, signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
+import mammoth from 'mammoth';
 
 interface SidebarProps {
   notes: Note[];
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
   onAddNote: () => void;
+  onImportNote: (title: string, content: string, date: number) => void;
   onDeleteNote: (id: string, e: React.MouseEvent) => void;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
   searchTerm: string;
@@ -73,6 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedNoteId,
   onSelectNote,
   onAddNote,
+  onImportNote,
   onDeleteNote,
   onToggleFavorite,
   searchTerm,
@@ -138,6 +141,64 @@ const Sidebar: React.FC<SidebarProps> = ({
     signOut(auth).catch(error => console.error("Error signing out", error));
   };
 
+  const processImportedContent = (content: string, lastModified: number) => {
+    if (!content) return;
+
+    // Extract title (first line)
+    const lines = content.split('\n');
+    const title = lines[0].replace(/^#+\s*/, '').substring(0, 50) || 'Imported Note';
+
+    // Try to detect date in the first 500 chars
+    const textToScan = content.substring(0, 500);
+    let detectedDate = lastModified;
+
+    // Common Date Regex Patterns
+    const datePatterns = [
+      /\b(\d{4})[-/](\d{1,2})[-/](\d{1,2})\b/, // YYYY-MM-DD or YYYY/MM/DD
+      /\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})\b/, // MM/DD/YYYY or DD/MM/YYYY (Assuming MM/DD/YYYY for ambiguity usually)
+      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b/i, // Month DD, YYYY
+      /\b(\d{1,2})(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?,?\s+(\d{4})\b/i // DD Month YYYY
+    ];
+
+    for (const pattern of datePatterns) {
+      const match = textToScan.match(pattern);
+      if (match) {
+        const dateStr = match[0];
+        const parsed = Date.parse(dateStr);
+        if (!isNaN(parsed)) {
+          detectedDate = parsed;
+          break;
+        }
+      }
+    }
+
+    onImportNote(title, content.trim(), detectedDate);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      let content = '';
+      if (file.name.endsWith('.docx')) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        content = result.value;
+      } else {
+        content = await file.text();
+      }
+
+      processImportedContent(content, file.lastModified);
+    } catch (error) {
+      console.error("Failed to read file", error);
+      alert("Error reading file. Please try again.");
+    }
+
+    // Reset inputs
+    event.target.value = '';
+  };
+
   return (
     <div className="w-full md:w-80 bg-stone-50 dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 h-full flex flex-col flex-shrink-0 transition-all duration-300">
       <div className="p-6 border-b border-stone-200 dark:border-stone-800 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm sticky top-0 z-10">
@@ -154,6 +215,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span>{streak}</span>
               </div>
             )}
+            <label
+              className="p-2 bg-white dark:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-full hover:bg-stone-100 dark:hover:bg-stone-700 transition-colors shadow-sm cursor-pointer border border-stone-200 dark:border-stone-700"
+              title="Import Text File"
+            >
+              <input
+                type="file"
+                accept=".txt,.md,.docx"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <UploadIcon className="w-5 h-5" />
+            </label>
             <button
               onClick={onAddNote}
               className="p-2 bg-stone-800 text-white rounded-full hover:bg-stone-700 transition-colors shadow-sm"
