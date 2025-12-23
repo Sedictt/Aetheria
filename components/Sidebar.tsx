@@ -27,6 +27,8 @@ interface SidebarProps {
   user: User | null;
   isDarkMode: boolean;
   toggleTheme: () => void;
+  currentTheme: string;
+  onThemeChange: (theme: string) => void;
 }
 
 const getMoodIcon = (mood: string, className: string, style: React.CSSProperties) => {
@@ -87,7 +89,9 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   user,
   isDarkMode,
-  toggleTheme
+  toggleTheme,
+  currentTheme,
+  onThemeChange
 }) => {
   // Calculate Streak
   const streak = useMemo(() => {
@@ -378,6 +382,28 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
+          </div>
+
+          {/* Theme Selector */}
+          <div className="mt-4 flex items-center justify-between px-1">
+            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">Theme</span>
+            <div className="flex gap-2">
+              {[
+                { id: 'stone', color: '#a8a29e', label: 'Stone' },
+                { id: 'rose', color: '#fb7185', label: 'Rose' },
+                { id: 'lavender', color: '#a78bfa', label: 'Lavender' },
+                { id: 'midnight', color: '#64748b', label: 'Midnight' },
+                { id: 'forest', color: '#4ade80', label: 'Forest' }
+              ].map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => onThemeChange(t.id)}
+                  className={`w-4 h-4 rounded-full transition-all duration-300 ${currentTheme === t.id ? 'scale-125 ring-2 ring-stone-400 dark:ring-stone-500' : 'hover:scale-110 opacity-70 hover:opacity-100'}`}
+                  style={{ backgroundColor: t.id === 'forest' ? '#4ade80' : t.color }} // Manual override for forest to be vibrant
+                  title={t.label}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

@@ -5,10 +5,9 @@ import { doc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc }
 import { auth, db } from './services/firebase';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
-import AIInsights from './components/AIInsights';
 import Login from './components/Login';
 import { Note, MoodEntry } from './types';
-import { analyzeJournalEntry, continueWriting } from './services/geminiService';
+import { continueWriting } from './services/geminiService';
 
 const STORAGE_KEY = 'atheria-journal-notes';
 const LEGACY_STORAGE_KEY = 'serenity-journal-notes';
@@ -21,9 +20,7 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
-  const [showInsights, setShowInsights] = useState(true);
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -47,6 +44,16 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+  // Color Theme State
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('atheria-color-theme') || 'stone';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('atheria-color-theme', theme);
+  }, [theme]);
 
   // Sorting State
   const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'title'>('updatedAt');
@@ -198,40 +205,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAIAnalyze = async () => {
-    const currentNote = notes.find(n => n.id === selectedNoteId);
-    if (!currentNote || !currentNote.content) return;
 
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzeJournalEntry(currentNote.content);
-
-      const newMoodEntry: MoodEntry = {
-        mood: result.mood,
-        score: result.moodScore,
-        color: result.moodColor,
-        timestamp: Date.now()
-      };
-
-      const updatedHistory = currentNote.moodHistory
-        ? [...currentNote.moodHistory, newMoodEntry]
-        : [newMoodEntry];
-
-      updateNote({
-        mood: result.mood,
-        moodHistory: updatedHistory,
-        tags: result.tags,
-        aiSummary: result.summary,
-        aiReflection: result.reflectionQuestion
-      });
-      setShowInsights(true);
-    } catch (error) {
-      console.error(error);
-      alert('Failed to analyze entry. Please try again.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
 
   const handleAIContinue = async () => {
     const currentNote = notes.find(n => n.id === selectedNoteId);
@@ -338,6 +312,8 @@ const App: React.FC = () => {
         user={user}
         isDarkMode={isDarkMode}
         toggleTheme={toggleTheme}
+        currentTheme={theme}
+        onThemeChange={setTheme}
       />
 
       {selectedNote ? (
@@ -345,19 +321,9 @@ const App: React.FC = () => {
           <Editor
             note={selectedNote}
             onChange={updateNote}
-            onAnalyze={handleAIAnalyze}
             onContinue={handleAIContinue}
-            isAnalyzing={isAnalyzing}
             isContinuing={isContinuing}
           />
-          <div className="hidden lg:block h-full">
-            <AIInsights
-              note={selectedNote}
-              isOpen={showInsights}
-              onClose={() => setShowInsights(false)}
-              onUpdateNote={updateNote}
-            />
-          </div>
         </div>
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 text-stone-300 dark:text-stone-600 transition-colors duration-300">

@@ -5,19 +5,15 @@ import { SparklesIcon, PenIcon } from './Icons';
 interface EditorProps {
   note: Note;
   onChange: (updates: Partial<Note>) => void;
-  onAnalyze: () => void;
   onContinue: () => void;
-  isAnalyzing: boolean;
   isContinuing: boolean;
 }
 
 const Editor: React.FC<EditorProps> = ({
   note,
   onChange,
-  onAnalyze,
   onContinue,
-  isAnalyzing,
-  isContinuing
+  isContinuing,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -53,14 +49,7 @@ const Editor: React.FC<EditorProps> = ({
 
         {/* Toolbar */}
         <div className="flex items-center gap-2 mb-6 sticky top-0 bg-white/95 dark:bg-stone-900/95 backdrop-blur py-2 z-10 transition-all duration-300">
-          <button
-            onClick={onAnalyze}
-            disabled={isAnalyzing || note.content.length < 10}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-full text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-stone-200 dark:border-stone-700"
-          >
-            <SparklesIcon className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : 'text-amber-500'}`} />
-            {isAnalyzing ? 'Reflecting...' : 'Reflect & Organize'}
-          </button>
+
 
           <button
             onClick={onContinue}
@@ -76,9 +65,13 @@ const Editor: React.FC<EditorProps> = ({
         <textarea
           ref={textareaRef}
           value={note.content}
-          onChange={(e) => onChange({ content: e.target.value })}
+          onChange={(e) => {
+            onChange({ content: e.target.value });
+            onChange({ content: e.target.value });
+          }}
+          // onKeyDown removed as it was only for focus mode
           placeholder="Start writing..."
-          className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] placeholder-stone-300 dark:placeholder-stone-700 transition-colors duration-300"
+          className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] pb-[50vh] placeholder-stone-300 dark:placeholder-stone-700 transition-colors duration-300"
           spellCheck={false}
         />
 
