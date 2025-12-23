@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from './services/firebase';
+import { doc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { auth, db } from './services/firebase';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import AIInsights from './components/AIInsights';
@@ -60,6 +61,38 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Sync / Load Notes from Firestore
+  useEffect(() => {
+    if (!user) {
+      setNotes([]);
+      return;
+    }
+
+    const q = query(collection(db, 'notes'), where('userId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedNotes: Note[] = [];
+      snapshot.forEach((doc) => {
+        fetchedNotes.push(doc.data() as Note);
+      });
+      setNotes(fetchedNotes);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Save changes to Firestore
+  const saveNoteToFirestore = async (note: Note) => {
+    if (!user) return;
+    try {
+      await setDoc(doc(db, 'notes', note.id), {
+        ...note,
+        userId: user.uid // Ensure note is linked to user
+      });
+    } catch (error) {
+      console.error("Error saving note: ", error);
+    }
+  };
+
   // Load notes from local storage on mount
   useEffect(() => {
     // Try to load from the new key first
@@ -86,9 +119,12 @@ const App: React.FC = () => {
   }, []);
 
   // Save notes to local storage whenever they change
+  // No longer strictly needed as we save on edit, but good for backup or offline-first later
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-  }, [notes]);
+    if (user) {
+      localStorage.setItem(`${STORAGE_KEY}-${user.uid}`, JSON.stringify(notes));
+    }
+  }, [notes, user]);
 
   const createNote = () => {
     const newNote: Note = {
@@ -100,7 +136,11 @@ const App: React.FC = () => {
       tags: [],
       isFavorite: false,
     };
-    setNotes([newNote, ...notes]);
+
+    // Optimistic Update
+    setNotes(prev => [newNote, ...prev]);
+    saveNoteToFirestore(newNote);
+
     setSelectedNoteId(newNote.id);
     // Reset filters when creating a new note to ensure it's visible
     setSearchTerm('');
@@ -114,30 +154,46 @@ const App: React.FC = () => {
   const updateNote = useCallback((updates: Partial<Note>) => {
     if (!selectedNoteId) return;
 
-    setNotes(prevNotes => prevNotes.map(note => {
-      if (note.id === selectedNoteId) {
-        return { ...note, ...updates, updatedAt: Date.now() };
-      }
-      return note;
-    }));
-  }, [selectedNoteId]);
+    setNotes(prevNotes => {
+      const updatedNotes = prevNotes.map(note => {
+        if (note.id === selectedNoteId) {
+          const updatedNote = { ...note, ...updates, updatedAt: Date.now() };
+          // Debounce or save immediately - for now save immediately
+          saveNoteToFirestore(updatedNote);
+          return updatedNote;
+        }
+        return note;
+      });
+      return updatedNotes;
+    });
+  }, [selectedNoteId, user]); // Added user dependency
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setNotes(prevNotes => prevNotes.map(note => {
-      if (note.id === id) {
-        return { ...note, isFavorite: !note.isFavorite };
-      }
-      return note;
-    }));
+    const noteToUpdate = notes.find(n => n.id === id);
+    if (noteToUpdate) {
+      const updatedNote = { ...noteToUpdate, isFavorite: !noteToUpdate.isFavorite };
+      // Optimistic
+      setNotes(prev => prev.map(n => n.id === id ? updatedNote : n));
+      saveNoteToFirestore(updatedNote);
+    }
   };
 
-  const deleteNote = (id: string, e: React.MouseEvent) => {
+  const deleteNote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this journal?')) {
+      // Optimistic
       setNotes(prevNotes => prevNotes.filter(n => n.id !== id));
       if (selectedNoteId === id) {
         setSelectedNoteId(null);
+      }
+
+      if (user) {
+        try {
+          await deleteDoc(doc(db, 'notes', id));
+        } catch (err) {
+          console.error("Failed to delete", err);
+        }
       }
     }
   };
