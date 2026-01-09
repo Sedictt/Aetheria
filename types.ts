@@ -17,6 +17,8 @@ export interface Note {
   aiSummary?: string;
   aiReflection?: string;
   isFavorite?: boolean;
+  type?: 'journal' | 'novel';
+  novelCategory?: 'chapter' | 'character' | 'location' | 'lore' | 'idea';
 }
 
 export type AIAnalysisResult = {

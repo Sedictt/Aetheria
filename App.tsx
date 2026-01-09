@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
+  const [appMode, setAppMode] = useState<'journal' | 'novel'>('journal');
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -58,6 +59,14 @@ const App: React.FC = () => {
   // Sorting State
   const [sortBy, setSortBy] = useState<'createdAt' | 'updatedAt' | 'title'>('updatedAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  // Reset selection when switching modes
+  useEffect(() => {
+    setSelectedNoteId(null);
+    setSearchTerm('');
+    setMoodFilter(null);
+    setShowFavorites(false);
+  }, [appMode]);
 
   // Auth Listener
   useEffect(() => {
@@ -133,7 +142,7 @@ const App: React.FC = () => {
     }
   }, [notes, user]);
 
-  const createNote = () => {
+  const createNote = (novelCategory?: 'chapter' | 'character' | 'location' | 'lore' | 'idea') => {
     const newNote: Note = {
       id: uuidv4(),
       title: '',
@@ -142,6 +151,8 @@ const App: React.FC = () => {
       updatedAt: Date.now(),
       tags: [],
       isFavorite: false,
+      type: appMode,
+      novelCategory: appMode === 'novel' ? (novelCategory || 'chapter') : undefined
     };
 
     // Optimistic Update
@@ -167,6 +178,7 @@ const App: React.FC = () => {
       updatedAt: Date.now(),
       tags: [],
       isFavorite: false,
+      type: appMode,
     };
 
     setNotes(prev => [newNote, ...prev]);
@@ -270,8 +282,11 @@ const App: React.FC = () => {
 
       const matchesMood = moodFilter ? note.mood === moodFilter : true;
       const matchesFavorite = showFavorites ? note.isFavorite : true;
+      const matchesType = appMode === 'novel'
+        ? note.type === 'novel'
+        : (!note.type || note.type === 'journal');
 
-      return matchesSearch && matchesMood && matchesFavorite;
+      return matchesSearch && matchesMood && matchesFavorite && matchesType;
     });
 
     // Then sort
@@ -292,7 +307,7 @@ const App: React.FC = () => {
       }
       return sortOrder === 'asc' ? comparison : -comparison;
     });
-  }, [notes, searchTerm, moodFilter, showFavorites, sortBy, sortOrder]);
+  }, [notes, searchTerm, moodFilter, showFavorites, sortBy, sortOrder, appMode]);
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
@@ -337,6 +352,8 @@ const App: React.FC = () => {
         toggleTheme={toggleTheme}
         currentTheme={theme}
         onThemeChange={setTheme}
+        appMode={appMode}
+        onAppModeChange={setAppMode}
       />
 
       {selectedNote ? (
@@ -354,7 +371,11 @@ const App: React.FC = () => {
             <span className="text-4xl">✒️</span>
           </div >
           <h2 className="text-2xl font-serif text-stone-800 dark:text-stone-200 mb-2">Atheria</h2>
-          <p className="max-w-md text-center text-stone-500 dark:text-stone-400">Select a journal from the sidebar or create a new one to start reflecting.</p>
+          <p className="max-w-md text-center text-stone-500 dark:text-stone-400">
+            {appMode === 'novel'
+              ? 'Select a chapter from the sidebar or create a new one to continue your novel.'
+              : 'Select a journal from the sidebar or create a new one to start reflecting.'}
+          </p>
         </div >
       )}
     </div >

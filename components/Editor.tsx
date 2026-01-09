@@ -43,6 +43,26 @@ const Editor: React.FC<EditorProps> = ({
     onChange({ createdAt: newDate.getTime() });
   };
 
+  const getPlaceholders = () => {
+    if (note.type === 'novel') {
+      switch (note.novelCategory) {
+        case 'character':
+          return { title: "Character Name...", content: "Describe their appearance, personality, and backstory..." };
+        case 'location':
+          return { title: "Location Name...", content: "Describe the atmosphere, geography, and history..." };
+        case 'lore':
+          return { title: "Concept / Myth...", content: "Explain the magic system, history, or law..." };
+        case 'idea':
+          return { title: "Idea...", content: "Jot down your brainstorming..." };
+        default:
+          return { title: "Chapter Title...", content: "Start writing your chapter..." };
+      }
+    }
+    return { title: "Title your thoughts...", content: "Start writing..." };
+  };
+
+  const placeholders = getPlaceholders();
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-stone-900 relative flex flex-col transition-colors duration-300">
       <div className="max-w-3xl mx-auto w-full px-8 py-12 flex-1 flex flex-col">
@@ -79,7 +99,7 @@ const Editor: React.FC<EditorProps> = ({
           type="text"
           value={note.title}
           onChange={(e) => onChange({ title: e.target.value })}
-          placeholder="Title your thoughts..."
+          placeholder={placeholders.title}
           className="text-4xl font-serif font-bold text-stone-800 dark:text-stone-100 placeholder-stone-300 dark:placeholder-stone-700 border-none outline-none bg-transparent w-full mb-8 leading-tight transition-colors duration-300"
         />
 
@@ -103,10 +123,9 @@ const Editor: React.FC<EditorProps> = ({
           value={note.content}
           onChange={(e) => {
             onChange({ content: e.target.value });
-            onChange({ content: e.target.value });
           }}
           // onKeyDown removed as it was only for focus mode
-          placeholder="Start writing..."
+          placeholder={placeholders.content}
           className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] pb-[50vh] placeholder-stone-300 dark:placeholder-stone-700 transition-colors duration-300"
           spellCheck={false}
         />
