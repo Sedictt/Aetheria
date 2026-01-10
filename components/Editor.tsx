@@ -63,6 +63,36 @@ const Editor: React.FC<EditorProps> = ({
 
   const placeholders = getPlaceholders();
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Only handle if note type is novel or user wants it everywhere (defaulting to everywhere for utility)
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'i')) {
+      e.preventDefault();
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = note.content.substring(start, end);
+      const wrapper = e.key === 'b' ? '**' : '*';
+
+      const before = note.content.substring(0, start);
+      const after = note.content.substring(end);
+
+      const newContent = `${before}${wrapper}${selectedText}${wrapper}${after}`;
+
+      // Update content
+      onChange({ content: newContent });
+
+      // Restore cursor selection (including wrappers)
+      // We need to wait for the render cycle potentially, but usually explicit selection setting works if done right after state update, 
+      // though React state updates are async. However, since we control the value prop, we can just set selection on next tick.
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + wrapper.length, end + wrapper.length);
+      }, 0);
+    }
+  };
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-stone-900 relative flex flex-col transition-colors duration-300">
       <div className="max-w-3xl mx-auto w-full px-8 py-12 flex-1 flex flex-col">
@@ -124,7 +154,8 @@ const Editor: React.FC<EditorProps> = ({
           onChange={(e) => {
             onChange({ content: e.target.value });
           }}
-          // onKeyDown removed as it was only for focus mode
+          // onKeyDown added for shortcuts
+          onKeyDown={handleKeyDown}
           placeholder={placeholders.content}
           className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] pb-[50vh] placeholder-stone-300 dark:placeholder-stone-700 transition-colors duration-300"
           spellCheck={false}

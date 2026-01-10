@@ -209,7 +209,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     <div className="w-full md:w-80 bg-stone-50 dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 h-full flex flex-col flex-shrink-0 transition-all duration-300">
       <div className="p-6 border-b border-stone-200 dark:border-stone-800 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-serif font-bold text-stone-800 dark:text-stone-100 tracking-tight">Atheria</h1>
+          <div className="flex items-center gap-2">
+            <img src="/logo.png" alt="Aetheria Logo" className="w-8 h-8 rounded-md object-cover" />
+            <h1 className="text-xl font-serif font-bold text-stone-800 dark:text-stone-100 tracking-tight">Atheria</h1>
+          </div>
 
           <div className="flex items-center gap-2">
             {streak > 0 && (

@@ -15,8 +15,8 @@ const Login: React.FC = () => {
     return (
         <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 items-center justify-center font-sans transition-colors duration-300">
             <div className="bg-white dark:bg-stone-900 p-8 rounded-2xl shadow-xl max-w-md w-full text-center border border-stone-100 dark:border-stone-800 transition-colors duration-300">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center transition-colors duration-300">
-                    <span className="text-4xl">✒️</span>
+                <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center overflow-hidden transition-colors duration-300 border-4 border-white dark:border-stone-800 shadow-lg">
+                    <img src="/logo.png" alt="Aetheria Logo" className="w-full h-full object-cover" />
                 </div>
                 <h1 className="text-3xl font-serif text-stone-800 dark:text-stone-100 mb-2">Welcome to Atheria</h1>
                 <p className="text-stone-500 dark:text-stone-400 mb-8">Your personal space for reflection and clarity.</p>
