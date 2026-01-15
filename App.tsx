@@ -113,8 +113,16 @@ const App: React.FC = () => {
   const saveNoteToFirestore = async (note: Note) => {
     if (!user) return;
     try {
+      // Remove undefined fields which Firestore doesn't support
+      const noteToSave = Object.entries(note).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+
       await setDoc(doc(db, 'notes', note.id), {
-        ...note,
+        ...noteToSave,
         userId: user.uid // Ensure note is linked to user
       }, { merge: true });
     } catch (error) {
