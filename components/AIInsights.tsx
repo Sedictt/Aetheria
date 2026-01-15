@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Note, MoodEntry } from '../types';
 import { BrainIcon, SparklesIcon } from './Icons';
 
@@ -244,7 +246,9 @@ const AIInsights: React.FC<AIInsightsProps> = ({ note, isOpen, onClose, onUpdate
           {note.aiSummary && (
             <div className="bg-white dark:bg-stone-800 p-5 rounded-xl shadow-sm border border-stone-100 dark:border-stone-700">
               <span className="text-xs font-bold text-stone-400 uppercase tracking-wider block mb-2">Summary</span>
-              <p className="text-stone-700 dark:text-stone-300 text-sm leading-relaxed">{note.aiSummary}</p>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-stone-700 dark:text-stone-300 leading-relaxed">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.aiSummary}</ReactMarkdown>
+              </div>
             </div>
           )}
 
@@ -252,9 +256,9 @@ const AIInsights: React.FC<AIInsightsProps> = ({ note, isOpen, onClose, onUpdate
           {note.aiReflection && (
             <div className="bg-indigo-50/50 dark:bg-indigo-900/20 p-5 rounded-xl border border-indigo-100 dark:border-indigo-800/50">
               <span className="text-xs font-bold text-indigo-400 dark:text-indigo-300 uppercase tracking-wider block mb-2">Thought Provoker</span>
-              <p className="text-indigo-900 dark:text-indigo-200 font-serif italic text-sm leading-relaxed">
-                "{note.aiReflection}"
-              </p>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-indigo-900 dark:text-indigo-200 font-serif italic text-sm leading-relaxed">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.aiReflection}</ReactMarkdown>
+              </div>
             </div>
           )}
         </div>

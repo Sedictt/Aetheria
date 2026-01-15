@@ -14,13 +14,15 @@ const firebaseConfig = {
 
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-import { getFirestore } from "firebase/firestore";
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const auth = getAuth(app);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 const googleProvider = new GoogleAuthProvider();
 
 export { app, analytics, auth, db, googleProvider };

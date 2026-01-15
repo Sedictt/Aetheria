@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
@@ -22,6 +22,8 @@ const App: React.FC = () => {
   const [showFavorites, setShowFavorites] = useState(false);
   const [isContinuing, setIsContinuing] = useState(false);
   const [appMode, setAppMode] = useState<'journal' | 'novel'>('journal');
+  const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -86,11 +88,22 @@ const App: React.FC = () => {
 
     const q = query(collection(db, 'notes'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedNotes: Note[] = [];
-      snapshot.forEach((doc) => {
-        fetchedNotes.push(doc.data() as Note);
+      const fetchedNotes = snapshot.docs.map(doc => doc.data() as Note);
+
+      setNotes(prevNotes => {
+        const localNotesMap = new Map(prevNotes.map(n => [n.id, n]));
+
+        const mergedNotes = fetchedNotes.map(serverNote => {
+          const localNote = localNotesMap.get(serverNote.id);
+          // If local version is newer (unsaved changes), keep local
+          if (localNote && localNote.updatedAt > serverNote.updatedAt) {
+            return localNote;
+          }
+          return serverNote;
+        });
+
+        return mergedNotes;
       });
-      setNotes(fetchedNotes);
     });
 
     return () => unsubscribe();
@@ -103,11 +116,45 @@ const App: React.FC = () => {
       await setDoc(doc(db, 'notes', note.id), {
         ...note,
         userId: user.uid // Ensure note is linked to user
-      });
+      }, { merge: true });
     } catch (error) {
       console.error("Error saving note: ", error);
+      throw error;
     }
   };
+
+  const debouncedSave = useCallback((note: Note) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    setSavingStatus('saving');
+
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        await saveNoteToFirestore(note);
+        setSavingStatus('saved');
+        // Reset to idle after a moment
+        setTimeout(() => setSavingStatus('idle'), 2000);
+      } catch (error) {
+        setSavingStatus('error');
+      }
+    }, 500);
+  }, [user]); // Re-create if user changes, though user uid is stable usually
+
+  // Warn user if they try to close the tab while saving
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (savingStatus === 'saving' || saveTimeoutRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [savingStatus]);
 
   // Load notes from local storage on mount
   useEffect(() => {
@@ -199,15 +246,14 @@ const App: React.FC = () => {
       const updatedNotes = prevNotes.map(note => {
         if (note.id === selectedNoteId) {
           const updatedNote = { ...note, ...updates, updatedAt: Date.now() };
-          // Debounce or save immediately - for now save immediately
-          saveNoteToFirestore(updatedNote);
+          debouncedSave(updatedNote);
           return updatedNote;
         }
         return note;
       });
       return updatedNotes;
     });
-  }, [selectedNoteId, user]); // Added user dependency
+  }, [selectedNoteId, debouncedSave]);
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -363,6 +409,7 @@ const App: React.FC = () => {
             onChange={updateNote}
             onContinue={handleAIContinue}
             isContinuing={isContinuing}
+            savingStatus={savingStatus}
           />
         </div>
       ) : (

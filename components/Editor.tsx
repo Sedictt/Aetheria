@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Note } from '../types';
-import { SparklesIcon, PenIcon } from './Icons';
+import { SparklesIcon, PenIcon, CloudIcon } from './Icons';
 
 interface EditorProps {
   note: Note;
   onChange: (updates: Partial<Note>) => void;
   onContinue: () => void;
   isContinuing: boolean;
+  savingStatus: 'idle' | 'saving' | 'saved' | 'error';
 }
 
 const Editor: React.FC<EditorProps> = ({
@@ -14,6 +15,7 @@ const Editor: React.FC<EditorProps> = ({
   onChange,
   onContinue,
   isContinuing,
+  savingStatus,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -145,6 +147,30 @@ const Editor: React.FC<EditorProps> = ({
             <PenIcon className={`w-4 h-4 ${isContinuing ? 'animate-pulse' : 'text-indigo-500'}`} />
             {isContinuing ? 'Writing...' : 'Continue Writing'}
           </button>
+
+          <div className="flex-1" />
+
+          {/* Saving Status Indicator */}
+          <div className="flex items-center gap-2 text-xs font-mono text-stone-400 dark:text-stone-500 transition-colors duration-200">
+            {savingStatus === 'saving' && (
+              <>
+                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                <span>Saving...</span>
+              </>
+            )}
+            {savingStatus === 'saved' && (
+              <>
+                <CloudIcon className="w-4 h-4 text-green-500" />
+                <span>Saved</span>
+              </>
+            )}
+            {savingStatus === 'error' && (
+              <>
+                <div className="w-2 h-2 rounded-full bg-red-500" />
+                <span className="text-red-500">Error Saving</span>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Main Content Area */}
