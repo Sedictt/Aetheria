@@ -148,6 +148,191 @@
       --c-900: 28 25 23;
       --c-950: 12 10 9;
     }
+
+    /* CLAYMORPHISM STYLES */
+    .clay-flat {
+      border-radius: 1.5rem;
+      background: rgb(var(--c-100));
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.6),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.05),
+        0 4px 10px rgba(0, 0, 0, 0.03);
+    }
+    
+    .dark .clay-flat {
+      background: rgb(var(--c-900));
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.05),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.4),
+        0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .clay-card {
+      border-radius: 1.5rem;
+      background: rgb(var(--c-50));
+      border: 1px solid rgba(var(--c-300), 0.1);
+      box-shadow: 
+        inset 3px 3px 6px rgba(255, 255, 255, 0.7),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.06),
+        0 10px 25px -5px rgba(var(--c-500), 0.1),
+        0 8px 10px -6px rgba(var(--c-500), 0.05);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .dark .clay-card {
+      background: rgb(var(--c-900));
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      box-shadow: 
+        inset 3px 3px 6px rgba(255, 255, 255, 0.05),
+        inset -3px -3px 6px rgba(0, 0, 0, 0.45),
+        0 12px 28px -5px rgba(0, 0, 0, 0.4),
+        0 8px 12px -6px rgba(0, 0, 0, 0.3);
+    }
+
+    .clay-card-active {
+      background: rgb(var(--c-100));
+      box-shadow: 
+        inset -3px -3px 6px rgba(255, 255, 255, 0.7),
+        inset 3px 3px 6px rgba(0, 0, 0, 0.06),
+        0 4px 8px -2px rgba(var(--c-500), 0.08);
+    }
+
+    .dark .clay-card-active {
+      background: rgb(var(--c-950));
+      box-shadow: 
+        inset -3px -3px 6px rgba(255, 255, 255, 0.03),
+        inset 3px 3px 6px rgba(0, 0, 0, 0.5),
+        0 4px 8px -2px rgba(0, 0, 0, 0.3);
+    }
+
+    .clay-button {
+      border-radius: 1rem;
+      font-weight: 600;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      background: rgb(var(--c-800));
+      color: rgb(var(--c-50));
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.2),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.4),
+        0 6px 12px -3px rgba(var(--c-800), 0.25);
+    }
+    
+    .clay-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.45),
+        0 8px 16px -3px rgba(var(--c-800), 0.3);
+    }
+    
+    .clay-button:active {
+      transform: translateY(1px);
+      box-shadow: 
+        inset -2px -2px 4px rgba(255, 255, 255, 0.2),
+        inset 2px 2px 4px rgba(0, 0, 0, 0.5),
+        0 2px 4px rgba(var(--c-800), 0.15);
+    }
+
+    .dark .clay-button {
+      background: rgb(var(--c-100));
+      color: rgb(var(--c-950));
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.5),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.1),
+        0 6px 12px -3px rgba(0, 0, 0, 0.3);
+    }
+    
+    .dark .clay-button:hover {
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.6),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.15),
+        0 8px 16px -3px rgba(0, 0, 0, 0.4);
+    }
+    
+    .dark .clay-button:active {
+      box-shadow: 
+        inset -2px -2px 4px rgba(255, 255, 255, 0.3),
+        inset 2px 2px 4px rgba(0, 0, 0, 0.25),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .clay-button-secondary {
+      border-radius: 1rem;
+      font-weight: 500;
+      background: rgb(var(--c-50));
+      color: rgb(var(--c-600));
+      border: 1px solid rgba(var(--c-200), 0.6);
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.03),
+        0 4px 6px -2px rgba(var(--c-500), 0.05);
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+    }
+
+    .clay-button-secondary:hover {
+      background: rgb(var(--c-100));
+      transform: translateY(-1px);
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.05),
+        0 6px 12px -2px rgba(var(--c-500), 0.1);
+    }
+
+    .dark .clay-button-secondary {
+      background: rgb(var(--c-800));
+      color: rgb(var(--c-200));
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.05),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.3),
+        0 4px 6px -2px rgba(0, 0, 0, 0.2);
+    }
+
+    .dark .clay-button-secondary:hover {
+      background: rgb(var(--c-700));
+      box-shadow: 
+        inset 2px 2px 4px rgba(255, 255, 255, 0.08),
+        inset -2px -2px 4px rgba(0, 0, 0, 0.35),
+        0 6px 12px -2px rgba(0, 0, 0, 0.35);
+    }
+
+    .clay-inset {
+      border-radius: 1.5rem;
+      background: rgb(var(--c-100));
+      box-shadow: 
+        inset 4px 4px 8px rgba(0, 0, 0, 0.05),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.6);
+    }
+
+    .dark .clay-inset {
+      background: rgb(var(--c-950));
+      box-shadow: 
+        inset 4px 4px 8px rgba(0, 0, 0, 0.45),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.02);
+    }
+
+    /* Ambient soft background animations */
+    @keyframes ambient-glow {
+      0% { transform: translate(0px, 0px) scale(1); }
+      33% { transform: translate(30px, -50px) scale(1.1); }
+      66% { transform: translate(-20px, 20px) scale(0.95); }
+      100% { transform: translate(0px, 0px) scale(1); }
+    }
+
+    .animate-ambient {
+      animation: ambient-glow 15s infinite alternate ease-in-out;
+    }
+
+    /* Hide scrollbars for chrome, safari and opera */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    
+    /* Hide scrollbars for ie, edge and firefox */
+    .no-scrollbar {
+      -ms-overflow-style: none;  /* IE and Edge */
+      scrollbar-width: none;  /* Firefox */
+    }
   </style>
   <script type="importmap">
 {

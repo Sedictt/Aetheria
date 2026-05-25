@@ -11,6 +11,8 @@
   "dependencies": {
     "@google/genai": "^1.30.0",
     "firebase": "^12.7.0",
+    "framer-motion": "^11.18.2",
+    "gsap": "^3.12.7",
     "mammoth": "^1.11.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

@@ -1,21 +1,26 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Note } from '../types';
-import { SparklesIcon, PenIcon, CloudIcon } from './Icons';
+import { SparklesIcon, PenIcon, CloudIcon, EyeIcon } from './Icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface EditorProps {
   note: Note;
   onChange: (updates: Partial<Note>) => void;
-  onContinue: () => void;
-  isContinuing: boolean;
   savingStatus: 'idle' | 'saving' | 'saved' | 'error';
+  isReadingMode: boolean;
+  onToggleReadingMode: () => void;
+  onBack: () => void;
+  onToggleSidebar: () => void;
 }
 
 const Editor: React.FC<EditorProps> = ({
   note,
   onChange,
-  onContinue,
-  isContinuing,
   savingStatus,
+  isReadingMode,
+  onToggleReadingMode,
+  onBack,
+  onToggleSidebar,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -40,7 +45,6 @@ const Editor: React.FC<EditorProps> = ({
     if (!e.target.value) return;
     const parts = e.target.value.split('-');
     const newDate = new Date(note.createdAt);
-    // Preserve time, only change date
     newDate.setFullYear(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
     onChange({ createdAt: newDate.getTime() });
   };
@@ -66,7 +70,6 @@ const Editor: React.FC<EditorProps> = ({
   const placeholders = getPlaceholders();
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Only handle if note type is novel or user wants it everywhere (defaulting to everywhere for utility)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'i')) {
       e.preventDefault();
       const textarea = textareaRef.current;
@@ -79,15 +82,10 @@ const Editor: React.FC<EditorProps> = ({
 
       const before = note.content.substring(0, start);
       const after = note.content.substring(end);
-
       const newContent = `${before}${wrapper}${selectedText}${wrapper}${after}`;
 
-      // Update content
       onChange({ content: newContent });
 
-      // Restore cursor selection (including wrappers)
-      // We need to wait for the render cycle potentially, but usually explicit selection setting works if done right after state update, 
-      // though React state updates are async. However, since we control the value prop, we can just set selection on next tick.
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + wrapper.length, end + wrapper.length);
@@ -95,10 +93,28 @@ const Editor: React.FC<EditorProps> = ({
     }
   };
 
+  const hasAnalysis = !!(note.mood || note.aiSummary || note.aiReflection);
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-stone-900 relative flex flex-col transition-colors duration-300">
-      <div className="max-w-3xl mx-auto w-full px-8 py-12 flex-1 flex flex-col">
-        {/* Date Header */}
+      {/* Floating Burger Menu button in top-left corner */}
+      <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={onToggleSidebar}
+        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-white/80 dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-full border border-stone-200/10 dark:border-stone-800/20 shadow-md backdrop-blur-md flex items-center justify-center w-10 h-10 clay-card"
+        title="Open Notes List"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </motion.button>
+
+      <div className="max-w-3xl mx-auto w-full px-6 py-16 md:px-8 md:py-12 flex-1 flex flex-col relative">
+        
+        {/* Claymorphic Date Header */}
         <div className="text-stone-400 dark:text-stone-500 text-sm font-mono mb-4 h-6 flex items-center">
           {isEditingDate ? (
             <input
@@ -111,10 +127,11 @@ const Editor: React.FC<EditorProps> = ({
               className="bg-transparent border-none outline-none font-mono text-stone-600 dark:text-stone-300 p-0"
             />
           ) : (
-            <span
-              onClick={() => setIsEditingDate(true)}
-              className="cursor-pointer hover:text-stone-600 dark:hover:text-stone-300 transition-colors border-b border-transparent hover:border-stone-300 dark:hover:border-stone-600"
-              title="Click to edit date"
+            <motion.span
+              whileHover={{ scale: 1.01, x: 2 }}
+              onClick={() => !isReadingMode && setIsEditingDate(true)}
+              className={`transition-colors font-semibold ${isReadingMode ? 'pointer-events-none' : 'cursor-pointer hover:text-stone-600 dark:hover:text-stone-300'}`}
+              title={isReadingMode ? undefined : "Click to edit date"}
             >
               {new Date(note.createdAt).toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -122,72 +139,92 @@ const Editor: React.FC<EditorProps> = ({
                 month: 'long',
                 day: 'numeric'
               })}
-            </span>
+            </motion.span>
           )}
         </div>
 
         {/* Title Input */}
-        <input
-          type="text"
-          value={note.title}
-          onChange={(e) => onChange({ title: e.target.value })}
-          placeholder={placeholders.title}
-          className="text-4xl font-serif font-bold text-stone-800 dark:text-stone-100 placeholder-stone-300 dark:placeholder-stone-700 border-none outline-none bg-transparent w-full mb-8 leading-tight transition-colors duration-300"
-        />
+        {isReadingMode ? (
+          <h1 className="text-4xl font-serif font-extrabold text-stone-800 dark:text-stone-550 w-full mb-8 leading-tight tracking-tight">
+            {note.title || (placeholders.title.replace('...', ''))}
+          </h1>
+        ) : (
+          <input
+            type="text"
+            value={note.title}
+            onChange={(e) => onChange({ title: e.target.value })}
+            placeholder={placeholders.title}
+            className="text-4xl font-serif font-extrabold text-stone-800 dark:text-stone-50 placeholder-stone-300 dark:placeholder-stone-800 border-none outline-none bg-transparent w-full mb-8 leading-tight tracking-tight focus:ring-0 p-0"
+          />
+        )}
 
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 mb-6 sticky top-0 bg-white/95 dark:bg-stone-900/95 backdrop-blur py-2 z-10 transition-all duration-300">
-
-
-          <button
-            onClick={onContinue}
-            disabled={isContinuing || note.content.length < 5}
-            className="flex items-center gap-2 px-4 py-2 bg-stone-50 dark:bg-stone-800 hover:bg-stone-100 dark:hover:bg-stone-700 text-stone-600 dark:text-stone-300 rounded-full text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-stone-200 dark:border-stone-700"
+        {/* Floating Glassmorphic / Claymorphic Toolbar */}
+        <div className="hidden md:flex items-center gap-3 mb-8 sticky top-0 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md py-3 px-4 z-10 rounded-2xl border border-stone-200/20 dark:border-stone-800/20 shadow-sm transition-all duration-300 clay-flat">
+          
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onToggleReadingMode}
+            className={`hidden md:flex p-2.5 rounded-xl transition-all border items-center justify-center ${isReadingMode
+              ? 'bg-stone-800 border-stone-800 text-white dark:bg-stone-100 dark:border-white dark:text-stone-950 shadow-sm'
+              : 'bg-white dark:bg-stone-800 border-stone-200/60 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800 shadow-sm'
+              }`}
+            title={isReadingMode ? "Exit Reading Mode" : "Enter Reading Mode"}
           >
-            <PenIcon className={`w-4 h-4 ${isContinuing ? 'animate-pulse' : 'text-indigo-500'}`} />
-            {isContinuing ? 'Writing...' : 'Continue Writing'}
-          </button>
+            {isReadingMode ? <PenIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+          </motion.button>
 
           <div className="flex-1" />
 
-          {/* Saving Status Indicator */}
-          <div className="flex items-center gap-2 text-xs font-mono text-stone-400 dark:text-stone-500 transition-colors duration-200">
+          {/* Glowing Physical LED saving status */}
+          <div className="flex items-center gap-2.5 text-xs font-mono font-bold text-stone-400 dark:text-stone-500 transition-colors duration-200 bg-stone-100/50 dark:bg-stone-950/30 px-3 py-1.5 rounded-xl border border-stone-200/20 dark:border-stone-800/10 shadow-inner">
             {savingStatus === 'saving' && (
               <>
-                <div className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
-                <span>Saving...</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                <span className="text-amber-500 dark:text-amber-400">Saving</span>
               </>
             )}
             {savingStatus === 'saved' && (
               <>
-                <CloudIcon className="w-4 h-4 text-green-500" />
-                <span>Saved</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] transition-all" />
+                <span className="text-emerald-600 dark:text-emerald-500">Saved</span>
               </>
             )}
             {savingStatus === 'error' && (
               <>
-                <div className="w-2 h-2 rounded-full bg-red-500" />
-                <span className="text-red-500">Error Saving</span>
+                <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
+                <span className="text-rose-550">Error</span>
+              </>
+            )}
+            {savingStatus === 'idle' && (
+              <>
+                <div className="w-2 h-2 rounded-full bg-stone-300 dark:bg-stone-700" />
+                <span>Synced</span>
               </>
             )}
           </div>
         </div>
 
         {/* Main Content Area */}
-        <textarea
-          ref={textareaRef}
-          value={note.content}
-          onChange={(e) => {
-            onChange({ content: e.target.value });
-          }}
-          // onKeyDown added for shortcuts
-          onKeyDown={handleKeyDown}
-          placeholder={placeholders.content}
-          className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] pb-[50vh] placeholder-stone-300 dark:placeholder-stone-700 transition-colors duration-300"
-          spellCheck={false}
-        />
-
-        <div className="h-20" /> {/* Bottom spacer */}
+        {isReadingMode ? (
+          <div className="w-full text-lg leading-loose text-stone-800 dark:text-stone-200 font-serif whitespace-pre-wrap pb-[40vh] leading-loose selection:bg-indigo-100 dark:selection:bg-stone-800 select-text">
+            {note.content || <span className="text-stone-350 dark:text-stone-650 italic">Write some notes to read them here...</span>}
+          </div>
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={note.content}
+            onChange={(e) => {
+              onChange({ content: e.target.value });
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholders.content}
+            className="w-full resize-none outline-none border-none text-lg leading-loose text-stone-700 dark:text-stone-300 font-serif bg-transparent flex-1 min-h-[50vh] pb-[40vh] placeholder-stone-300 dark:placeholder-stone-800 focus:ring-0 p-0 selection:bg-indigo-100 dark:selection:bg-stone-800"
+            spellCheck={false}
+          />
+        )}
+        
+        <div className="h-20" />
       </div>
     </div>
   );

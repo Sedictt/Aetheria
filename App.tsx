@@ -6,8 +6,9 @@ import { auth, db } from './services/firebase';
 import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import Login from './components/Login';
+import MobileSettings from './components/MobileSettings';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Note, MoodEntry } from './types';
-import { continueWriting } from './services/geminiService';
 
 const STORAGE_KEY = 'atheria-journal-notes';
 const LEGACY_STORAGE_KEY = 'serenity-journal-notes';
@@ -20,10 +21,63 @@ const App: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [moodFilter, setMoodFilter] = useState<string | null>(null);
   const [showFavorites, setShowFavorites] = useState(false);
-  const [isContinuing, setIsContinuing] = useState(false);
   const [appMode, setAppMode] = useState<'journal' | 'novel'>('journal');
   const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [isReadingMode, setIsReadingMode] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [mobileTab, setMobileTab] = useState<'journal' | 'favorites' | 'novel' | 'settings'>('journal');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Keep mobileTab and showFavorites / appMode in sync
+  useEffect(() => {
+    if (mobileTab === 'favorites') {
+      setShowFavorites(true);
+    } else {
+      setShowFavorites(false);
+      if (appMode === 'journal' && mobileTab !== 'journal' && mobileTab !== 'settings') {
+        setMobileTab('journal');
+      } else if (appMode === 'novel' && mobileTab !== 'novel' && mobileTab !== 'settings') {
+        setMobileTab('novel');
+      }
+    }
+  }, [appMode, mobileTab]);
+
+  const handleMobileTabChange = (tab: 'journal' | 'favorites' | 'novel' | 'settings') => {
+    setMobileTab(tab);
+    setSelectedNoteId(null); // Return to list view / settings root of selected tab
+    if (tab === 'journal' || tab === 'novel') {
+      setAppMode(tab);
+    }
+  };
+
+  // Calculate Streak for Mobile Settings View
+  const streak = useMemo(() => {
+    const uniqueDates = new Set(
+      notes.map(note => new Date(note.createdAt).toDateString())
+    );
+
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const todayStr = today.toDateString();
+    const yesterdayStr = yesterday.toDateString();
+
+    if (!uniqueDates.has(todayStr) && !uniqueDates.has(yesterdayStr)) {
+      return 0;
+    }
+
+    let currentStreak = 0;
+    let checkDate = uniqueDates.has(todayStr) ? today : yesterday;
+
+    while (uniqueDates.has(checkDate.toDateString())) {
+      currentStreak++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    return currentStreak;
+  }, [notes]);
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -292,30 +346,6 @@ const App: React.FC = () => {
       }
     }
   };
-
-
-
-  const handleAIContinue = async () => {
-    const currentNote = notes.find(n => n.id === selectedNoteId);
-    if (!currentNote) return;
-
-    setIsContinuing(true);
-    try {
-      const continuation = await continueWriting(currentNote.content);
-      if (continuation) {
-        // Append with a space if needed
-        const spacer = currentNote.content.endsWith(' ') ? '' : ' ';
-        updateNote({
-          content: currentNote.content + spacer + continuation
-        });
-      }
-    } catch (error) {
-      alert('Failed to generate text. Please try again.');
-    } finally {
-      setIsContinuing(false);
-    }
-  };
-
   // Calculate available moods for the filter
   const availableMoods = useMemo(() => {
     const moods = new Set<string>();
@@ -365,6 +395,13 @@ const App: React.FC = () => {
 
   const selectedNote = notes.find(n => n.id === selectedNoteId);
 
+  // Auto-select the first note if none is selected
+  useEffect(() => {
+    if (!selectedNoteId && sortedFilteredNotes.length > 0) {
+      setSelectedNoteId(sortedFilteredNotes[0].id);
+    }
+  }, [sortedFilteredNotes, selectedNoteId]);
+
   if (authLoading) {
     return (
       <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 items-center justify-center">
@@ -382,58 +419,253 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans overflow-hidden transition-colors duration-300">
-      <Sidebar
-        notes={sortedFilteredNotes}
-        selectedNoteId={selectedNoteId}
-        onSelectNote={setSelectedNoteId}
-        onAddNote={createNote}
-        onImportNote={importNote}
-        onDeleteNote={deleteNote}
-        onToggleFavorite={toggleFavorite}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        moodFilter={moodFilter}
-        onMoodFilterChange={setMoodFilter}
-        showFavorites={showFavorites}
-        onToggleFavoritesFilter={() => setShowFavorites(!showFavorites)}
-        availableMoods={availableMoods}
-        sortBy={sortBy}
-        onSortByChange={setSortBy}
-        sortOrder={sortOrder}
-        onSortOrderChange={setSortOrder}
-        user={user}
-        isDarkMode={isDarkMode}
-        toggleTheme={toggleTheme}
-        currentTheme={theme}
-        onThemeChange={setTheme}
-        appMode={appMode}
-        onAppModeChange={setAppMode}
-      />
+      {!isReadingMode && (
+        <>
+          {/* Desktop Sidebar: persistent on desktop */}
+          <div className="hidden md:block w-80 h-full flex-shrink-0">
+            <Sidebar
+              notes={sortedFilteredNotes}
+              selectedNoteId={selectedNoteId}
+              onSelectNote={setSelectedNoteId}
+              onAddNote={createNote}
+              onImportNote={importNote}
+              onDeleteNote={deleteNote}
+              onToggleFavorite={toggleFavorite}
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              moodFilter={moodFilter}
+              onMoodFilterChange={setMoodFilter}
+              showFavorites={showFavorites}
+              onToggleFavoritesFilter={() => setShowFavorites(!showFavorites)}
+              availableMoods={availableMoods}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+              sortOrder={sortOrder}
+              onSortOrderChange={setSortOrder}
+              user={user}
+              isDarkMode={isDarkMode}
+              toggleTheme={toggleTheme}
+              currentTheme={theme}
+              onThemeChange={setTheme}
+              appMode={appMode}
+              onAppModeChange={setAppMode}
+              mobileTab={mobileTab}
+            />
+          </div>
 
-      {selectedNote ? (
+          {/* Mobile Collapsible Sidebar Drawer overlay */}
+          <AnimatePresence>
+            {isSidebarOpen && (
+              <>
+                {/* Translucent Backdrop */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
+                />
+
+                {/* Drawer Container */}
+                <motion.div
+                  initial={{ x: '-100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '-100%' }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                  className="fixed inset-y-0 left-0 w-[80vw] max-w-[320px] h-full z-50 md:hidden shadow-2xl"
+                >
+                  <Sidebar
+                    notes={sortedFilteredNotes}
+                    selectedNoteId={selectedNoteId}
+                    onSelectNote={(id) => {
+                      setSelectedNoteId(id);
+                      setIsSidebarOpen(false); // Auto-close drawer on selection
+                    }}
+                    onAddNote={(cat) => {
+                      createNote(cat);
+                      setIsSidebarOpen(false);
+                    }}
+                    onImportNote={(t, c, d) => {
+                      importNote(t, c, d);
+                      setIsSidebarOpen(false);
+                    }}
+                    onDeleteNote={deleteNote}
+                    onToggleFavorite={toggleFavorite}
+                    searchTerm={searchTerm}
+                    onSearchChange={setSearchTerm}
+                    moodFilter={moodFilter}
+                    onMoodFilterChange={setMoodFilter}
+                    showFavorites={showFavorites}
+                    onToggleFavoritesFilter={() => setShowFavorites(!showFavorites)}
+                    availableMoods={availableMoods}
+                    sortBy={sortBy}
+                    onSortByChange={setSortBy}
+                    sortOrder={sortOrder}
+                    onSortOrderChange={setSortOrder}
+                    user={user}
+                    isDarkMode={isDarkMode}
+                    toggleTheme={toggleTheme}
+                    currentTheme={theme}
+                    onThemeChange={setTheme}
+                    appMode={appMode}
+                    onAppModeChange={setAppMode}
+                    mobileTab={mobileTab}
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+
+          {/* Dedicated Settings View on Mobile: visible only if mobileTab is settings */}
+          {!selectedNoteId && mobileTab === 'settings' && (
+            <MobileSettings
+              user={user}
+              streak={streak}
+              isDarkMode={isDarkMode}
+              toggleTheme={toggleTheme}
+              currentTheme={theme}
+              onThemeChange={setTheme}
+            />
+          )}
+        </>
+      )}
+
+      {selectedNote && (mobileTab !== 'settings' || !isReadingMode) ? (
         <div className="flex-1 flex flex-row relative h-full">
           <Editor
             note={selectedNote}
             onChange={updateNote}
-            onContinue={handleAIContinue}
-            isContinuing={isContinuing}
             savingStatus={savingStatus}
+            isReadingMode={isReadingMode}
+            onToggleReadingMode={() => setIsReadingMode(!isReadingMode)}
+            onBack={() => setSelectedNoteId(null)}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
           />
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 text-stone-300 dark:text-stone-600 transition-colors duration-300">
-          <div className="w-24 h-24 mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center transition-colors duration-300">
+        /* Empty-state / no-note-selected fallback on Mobile & Desktop */
+        <div className="flex flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 text-stone-300 dark:text-stone-600 transition-colors duration-300 px-6">
+          <div className="w-24 h-24 mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center transition-colors duration-300 shadow-inner clay-card">
             <span className="text-4xl">✒️</span>
-          </div >
+          </div>
           <h2 className="text-2xl font-serif text-stone-800 dark:text-stone-200 mb-2">Atheria</h2>
-          <p className="max-w-md text-center text-stone-500 dark:text-stone-400">
+          <p className="max-w-md text-center text-stone-500 dark:text-stone-400 mb-6">
             {appMode === 'novel'
-              ? 'Select a chapter from the sidebar or create a new one to continue your novel.'
-              : 'Select a journal from the sidebar or create a new one to start reflecting.'}
+              ? 'Create a new chapter or character to begin your novel.'
+              : 'Create a new journal entry to begin reflecting.'}
           </p>
-        </div >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => createNote()}
+            className="px-6 py-2.5 bg-stone-800 dark:bg-stone-100 text-white dark:text-stone-900 rounded-xl font-bold text-sm shadow-md clay-button flex items-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Create Entry</span>
+          </motion.button>
+        </div>
       )}
-    </div >
+
+      {/* Symmetrical Floating Bottom Navigation Bar (Mobile Viewports Only, hides only in reading mode) */}
+      {!isReadingMode && (
+        <div className="fixed bottom-6 left-6 right-6 z-40 md:hidden flex justify-between items-center bg-white/60 dark:bg-stone-950/60 backdrop-blur-xl border border-stone-250/20 dark:border-stone-800/40 p-2.5 rounded-[1.8rem] shadow-xl clay-card">
+          {/* Journal Tab */}
+          <button
+            onClick={() => handleMobileTabChange('journal')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-300 relative ${
+              mobileTab === 'journal'
+                ? 'text-stone-800 dark:text-stone-100 font-extrabold'
+                : 'text-stone-400 dark:text-stone-550'
+            }`}
+          >
+            {mobileTab === 'journal' && (
+              <motion.span layoutId="mobileTabGlow" className="absolute inset-0 bg-stone-100/80 dark:bg-stone-850/40 rounded-xl pointer-events-none" />
+            )}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            </svg>
+            <span className="text-[9px] uppercase tracking-wider font-bold">Journal</span>
+          </button>
+
+          {/* Favorites Tab */}
+          <button
+            onClick={() => handleMobileTabChange('favorites')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-300 relative ${
+              mobileTab === 'favorites'
+                ? 'text-stone-800 dark:text-stone-100 font-extrabold'
+                : 'text-stone-400 dark:text-stone-550'
+            }`}
+          >
+            {mobileTab === 'favorites' && (
+              <motion.span layoutId="mobileTabGlow" className="absolute inset-0 bg-stone-100/80 dark:bg-stone-850/40 rounded-xl pointer-events-none" />
+            )}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            <span className="text-[9px] uppercase tracking-wider font-bold">Favorites</span>
+          </button>
+
+          {/* Central Pulsing FAB */}
+          <div className="relative -mt-6 mx-2 select-none">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => createNote()}
+              className="w-14 h-14 bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-950 rounded-full hover:bg-stone-800 dark:hover:bg-stone-200 transition-all flex items-center justify-center shadow-lg border border-white/20 dark:border-stone-800/20 clay-button"
+              aria-label="New Entry"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </motion.button>
+          </div>
+
+          {/* Novel Tab */}
+          <button
+            onClick={() => handleMobileTabChange('novel')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-300 relative ${
+              mobileTab === 'novel'
+                ? 'text-stone-800 dark:text-stone-100 font-extrabold'
+                : 'text-stone-400 dark:text-stone-550'
+            }`}
+          >
+            {mobileTab === 'novel' && (
+              <motion.span layoutId="mobileTabGlow" className="absolute inset-0 bg-stone-100/80 dark:bg-stone-850/40 rounded-xl pointer-events-none" />
+            )}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            <span className="text-[9px] uppercase tracking-wider font-bold">Novel</span>
+          </button>
+
+          {/* Settings Tab */}
+          <button
+            onClick={() => handleMobileTabChange('settings')}
+            className={`flex-1 flex flex-col items-center gap-1 py-1.5 rounded-xl transition-all duration-300 relative ${
+              mobileTab === 'settings'
+                ? 'text-stone-800 dark:text-stone-100 font-extrabold'
+                : 'text-stone-400 dark:text-stone-550'
+            }`}
+          >
+            {mobileTab === 'settings' && (
+              <motion.span layoutId="mobileTabGlow" className="absolute inset-0 bg-stone-100/80 dark:bg-stone-850/40 rounded-xl pointer-events-none" />
+            )}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            <span className="text-[9px] uppercase tracking-wider font-bold">Settings</span>
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
