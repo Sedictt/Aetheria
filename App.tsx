@@ -7,6 +7,9 @@ import Sidebar from './components/Sidebar';
 import Editor from './components/Editor';
 import Login from './components/Login';
 import MobileSettings from './components/MobileSettings';
+import EBookReader from './components/EBookReader';
+import ShareModal from './components/ShareModal';
+import { sharePiece, unsharePiece } from './services/shareService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Note, MoodEntry } from './types';
 
@@ -25,6 +28,23 @@ const App: React.FC = () => {
   const [savingStatus, setSavingStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isReadingMode, setIsReadingMode] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sharing & E-Book Reader Route Detection (Mobile-First URL check)
+  const [readingSharedPieceId, setReadingSharedPieceId] = useState<string | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const readId = params.get('read') || params.get('share');
+      if (readId) return readId;
+
+      const hash = window.location.hash;
+      const match = hash.match(/#\/(?:read|share)\/([^&?]+)/);
+      if (match) return match[1];
+    } catch {}
+    return null;
+  });
+
+  // Note currently being shared via ShareModal
+  const [sharingNote, setSharingNote] = useState<Note | null>(null);
 
   const [mobileTab, setMobileTab] = useState<'journal' | 'favorites' | 'novel' | 'settings'>('journal');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -81,7 +101,6 @@ const App: React.FC = () => {
 
   // Theme State
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Check local storage or system preference
     const savedTheme = localStorage.getItem('atheria-theme');
     if (savedTheme) {
       return savedTheme === 'dark';
@@ -167,7 +186,6 @@ const App: React.FC = () => {
   const saveNoteToFirestore = async (note: Note) => {
     if (!user) return;
     try {
-      // Remove undefined fields which Firestore doesn't support
       const noteToSave = Object.entries(note).reduce((acc, [key, value]) => {
         if (value !== undefined) {
           acc[key] = value;
@@ -177,8 +195,13 @@ const App: React.FC = () => {
 
       await setDoc(doc(db, 'notes', note.id), {
         ...noteToSave,
-        userId: user.uid // Ensure note is linked to user
+        userId: user.uid
       }, { merge: true });
+
+      // If this note is publicly shared, sync updates to shared_pieces as well
+      if (note.isShared) {
+        await sharePiece(note, user);
+      }
     } catch (error) {
       console.error("Error saving note: ", error);
       throw error;
@@ -196,13 +219,12 @@ const App: React.FC = () => {
       try {
         await saveNoteToFirestore(note);
         setSavingStatus('saved');
-        // Reset to idle after a moment
         setTimeout(() => setSavingStatus('idle'), 2000);
       } catch (error) {
         setSavingStatus('error');
       }
     }, 500);
-  }, [user]); // Re-create if user changes, though user uid is stable usually
+  }, [user]);
 
   // Warn user if they try to close the tab while saving
   useEffect(() => {
@@ -220,7 +242,6 @@ const App: React.FC = () => {
 
   // Load notes from local storage on mount
   useEffect(() => {
-    // Try to load from the new key first
     const savedNotes = localStorage.getItem(STORAGE_KEY);
     if (savedNotes) {
       try {
@@ -231,20 +252,17 @@ const App: React.FC = () => {
       }
     }
 
-    // Fallback: try to load from the legacy key (migration)
     const legacyNotes = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (legacyNotes) {
       try {
         setNotes(JSON.parse(legacyNotes));
-        // We will save to the new key in the next effect when `notes` updates
       } catch (e) {
         console.error('Failed to parse notes from legacy key', e);
       }
     }
   }, []);
 
-  // Save notes to local storage whenever they change
-  // No longer strictly needed as we save on edit, but good for backup or offline-first later
+  // Save notes to local storage
   useEffect(() => {
     if (user) {
       localStorage.setItem(`${STORAGE_KEY}-${user.uid}`, JSON.stringify(notes));
@@ -264,16 +282,13 @@ const App: React.FC = () => {
       novelCategory: appMode === 'novel' ? (novelCategory || 'chapter') : undefined
     };
 
-    // Optimistic Update
     setNotes(prev => [newNote, ...prev]);
     saveNoteToFirestore(newNote);
 
     setSelectedNoteId(newNote.id);
-    // Reset filters when creating a new note to ensure it's visible
     setSearchTerm('');
     setMoodFilter(null);
     setShowFavorites(false);
-    // Default sort to see the new note
     setSortBy('createdAt');
     setSortOrder('desc');
   };
@@ -322,7 +337,6 @@ const App: React.FC = () => {
     const noteToUpdate = notes.find(n => n.id === id);
     if (noteToUpdate) {
       const updatedNote = { ...noteToUpdate, isFavorite: !noteToUpdate.isFavorite };
-      // Optimistic
       setNotes(prev => prev.map(n => n.id === id ? updatedNote : n));
       saveNoteToFirestore(updatedNote);
     }
@@ -331,7 +345,7 @@ const App: React.FC = () => {
   const deleteNote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this journal?')) {
-      // Optimistic
+      const targetNote = notes.find(n => n.id === id);
       setNotes(prevNotes => prevNotes.filter(n => n.id !== id));
       if (selectedNoteId === id) {
         setSelectedNoteId(null);
@@ -340,13 +354,21 @@ const App: React.FC = () => {
       if (user) {
         try {
           await deleteDoc(doc(db, 'notes', id));
+          if (targetNote?.isShared) {
+            await unsharePiece(id);
+          }
         } catch (err) {
           console.error("Failed to delete", err);
         }
       }
     }
   };
-  // Calculate available moods for the filter
+
+  const handleOpenShare = (note: Note, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSharingNote(note);
+  };
+
   const availableMoods = useMemo(() => {
     const moods = new Set<string>();
     notes.forEach(note => {
@@ -358,7 +380,6 @@ const App: React.FC = () => {
   }, [notes]);
 
   const sortedFilteredNotes = useMemo(() => {
-    // First filter
     const filtered = notes.filter(note => {
       const matchesSearch = note.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         note.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -373,7 +394,6 @@ const App: React.FC = () => {
       return matchesSearch && matchesMood && matchesFavorite && matchesType;
     });
 
-    // Then sort
     return filtered.sort((a, b) => {
       let comparison = 0;
       switch (sortBy) {
@@ -402,6 +422,23 @@ const App: React.FC = () => {
     }
   }, [sortedFilteredNotes, selectedNoteId]);
 
+  // 1. Direct Public E-Book Reader Route (Unauthenticated & Mobile-First)
+  if (readingSharedPieceId) {
+    return (
+      <EBookReader
+        pieceId={readingSharedPieceId}
+        onExit={() => {
+          setReadingSharedPieceId(null);
+          // Clean URL parameter without reloading
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.pushState(null, '', cleanUrl);
+        }}
+        isAuthorLoggedIn={!!user && notes.some(n => n.id === readingSharedPieceId)}
+      />
+    );
+  }
+
+  // 2. Auth Loading state
   if (authLoading) {
     return (
       <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 items-center justify-center">
@@ -413,10 +450,12 @@ const App: React.FC = () => {
     );
   }
 
+  // 3. Unauthenticated User State
   if (!user) {
     return <Login />;
   }
 
+  // 4. Authenticated Main Application
   return (
     <div className="flex h-screen w-screen bg-stone-50 dark:bg-stone-950 text-stone-900 dark:text-stone-100 font-sans overflow-hidden transition-colors duration-300">
       {!isReadingMode && (
@@ -431,6 +470,7 @@ const App: React.FC = () => {
               onImportNote={importNote}
               onDeleteNote={deleteNote}
               onToggleFavorite={toggleFavorite}
+              onOpenShare={handleOpenShare}
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               moodFilter={moodFilter}
@@ -457,7 +497,6 @@ const App: React.FC = () => {
           <AnimatePresence>
             {isSidebarOpen && (
               <>
-                {/* Translucent Backdrop */}
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -466,7 +505,6 @@ const App: React.FC = () => {
                   className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden"
                 />
 
-                {/* Drawer Container */}
                 <motion.div
                   initial={{ x: '-100%' }}
                   animate={{ x: 0 }}
@@ -479,7 +517,7 @@ const App: React.FC = () => {
                     selectedNoteId={selectedNoteId}
                     onSelectNote={(id) => {
                       setSelectedNoteId(id);
-                      setIsSidebarOpen(false); // Auto-close drawer on selection
+                      setIsSidebarOpen(false);
                     }}
                     onAddNote={(cat) => {
                       createNote(cat);
@@ -491,6 +529,7 @@ const App: React.FC = () => {
                     }}
                     onDeleteNote={deleteNote}
                     onToggleFavorite={toggleFavorite}
+                    onOpenShare={handleOpenShare}
                     searchTerm={searchTerm}
                     onSearchChange={setSearchTerm}
                     moodFilter={moodFilter}
@@ -517,7 +556,7 @@ const App: React.FC = () => {
             )}
           </AnimatePresence>
 
-          {/* Dedicated Settings View on Mobile: visible only if mobileTab is settings */}
+          {/* Dedicated Settings View on Mobile */}
           {!selectedNoteId && mobileTab === 'settings' && (
             <MobileSettings
               user={user}
@@ -541,10 +580,11 @@ const App: React.FC = () => {
             onToggleReadingMode={() => setIsReadingMode(!isReadingMode)}
             onBack={() => setSelectedNoteId(null)}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            onOpenShare={() => handleOpenShare(selectedNote)}
+            onOpenEBookPreview={() => setReadingSharedPieceId(selectedNote.id)}
           />
         </div>
       ) : (
-        /* Empty-state / no-note-selected fallback on Mobile & Desktop */
         <div className="flex flex-1 flex flex-col items-center justify-center bg-white dark:bg-stone-900 text-stone-300 dark:text-stone-600 transition-colors duration-300 px-6">
           <div className="w-24 h-24 mb-6 rounded-full bg-stone-50 dark:bg-stone-800 flex items-center justify-center transition-colors duration-300 shadow-inner clay-card">
             <span className="text-4xl">✒️</span>
@@ -570,7 +610,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Symmetrical Floating Bottom Navigation Bar (Mobile Viewports Only, hides only in reading mode) */}
+      {/* Symmetrical Floating Bottom Navigation Bar (Mobile Viewports Only) */}
       {!isReadingMode && (
         <div className="fixed bottom-6 left-6 right-6 z-40 md:hidden flex justify-between items-center bg-white/60 dark:bg-stone-950/60 backdrop-blur-xl border border-stone-250/20 dark:border-stone-800/40 p-2.5 rounded-[1.8rem] shadow-xl clay-card">
           {/* Journal Tab */}
@@ -664,6 +704,24 @@ const App: React.FC = () => {
             <span className="text-[9px] uppercase tracking-wider font-bold">Settings</span>
           </button>
         </div>
+      )}
+
+      {/* Share Modal */}
+      {sharingNote && user && (
+        <ShareModal
+          note={sharingNote}
+          user={user}
+          isOpen={!!sharingNote}
+          onClose={() => setSharingNote(null)}
+          onUpdateNote={(updates) => {
+            updateNote(updates);
+            setSharingNote(prev => prev ? { ...prev, ...updates } : null);
+          }}
+          onOpenPreview={(noteId) => {
+            setSharingNote(null);
+            setReadingSharedPieceId(noteId);
+          }}
+        />
       )}
     </div>
   );

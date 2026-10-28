@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Note } from '../types';
-import { PlusIcon, SearchIcon, TrashIcon, FlameIcon, StarIcon, SunIcon, MoonIcon, CloudIcon, ZapIcon, HeartIcon, ArrowUpIcon, ArrowDownIcon, UploadIcon, BookIcon, UserIcon, MapIcon } from './Icons';
+import { PlusIcon, SearchIcon, TrashIcon, FlameIcon, StarIcon, SunIcon, MoonIcon, CloudIcon, ZapIcon, HeartIcon, ArrowUpIcon, ArrowDownIcon, UploadIcon, BookIcon, UserIcon, MapIcon, ShareIcon } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
@@ -14,6 +14,7 @@ interface SidebarProps {
   onImportNote: (title: string, content: string, date: number) => void;
   onDeleteNote: (id: string, e: React.MouseEvent) => void;
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
+  onOpenShare?: (note: Note, e: React.MouseEvent) => void;
   searchTerm: string;
   onSearchChange: (term: string) => void;
   moodFilter: string | null;
@@ -72,6 +73,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   onImportNote,
   onDeleteNote,
   onToggleFavorite,
+  onOpenShare,
   searchTerm,
   onSearchChange,
   moodFilter,
@@ -455,9 +457,17 @@ const Sidebar: React.FC<SidebarProps> = ({
                         </h3>
                       </div>
 
-                      <p className="text-[10px] text-stone-400 dark:text-stone-500 mb-2.5 font-mono font-medium">
-                        {formatDate(note.updatedAt)}
-                      </p>
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono font-medium">
+                          {formatDate(note.updatedAt)}
+                        </p>
+                        {note.isShared && (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-full border border-emerald-300/40 dark:border-emerald-800/40">
+                            <span className="w-1 h-1 rounded-full bg-emerald-500" />
+                            Shared
+                          </span>
+                        )}
+                      </div>
                       
                       <p className="text-sm text-stone-500 dark:text-stone-400 line-clamp-2 h-10 font-serif leading-relaxed opacity-90 pr-12 text-ellipsis overflow-hidden">
                         {note.content || 'Empty note...'}
@@ -465,7 +475,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                       {/* Tags Render */}
                       {note.tags && note.tags.length > 0 && (
-                        <div className="flex gap-1.5 mt-3.5 flex-wrap pr-12">
+                        <div className="flex gap-1.5 mt-3.5 flex-wrap pr-16">
                           {note.tags.slice(0, 2).map((tag, i) => (
                             <span key={i} className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-stone-100/80 dark:bg-stone-800 text-stone-500 dark:text-stone-400 border border-stone-200/20 dark:border-stone-700/20">
                               #{tag}
@@ -494,6 +504,21 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                       {/* Action buttons with elegant entry triggers */}
                       <div className="absolute bottom-4 right-4 flex items-center gap-1">
+                        {onOpenShare && (
+                          <motion.button
+                            whileHover={{ scale: 1.15 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={(e) => onOpenShare(note, e)}
+                            className={`p-1.5 rounded-lg transition-all ${note.isShared
+                              ? 'text-emerald-600 dark:text-emerald-400 opacity-100'
+                              : `text-stone-300 dark:text-stone-600 hover:text-stone-700 dark:hover:text-stone-200 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`
+                              }`}
+                            title={note.isShared ? "E-Book link active (click to manage)" : "Share as E-Book"}
+                          >
+                            <ShareIcon className="w-3.5 h-3.5" />
+                          </motion.button>
+                        )}
+
                         <motion.button
                           whileHover={{ scale: 1.15 }}
                           whileTap={{ scale: 0.9 }}

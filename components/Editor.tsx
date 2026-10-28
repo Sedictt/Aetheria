@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Note } from '../types';
-import { SparklesIcon, PenIcon, CloudIcon, EyeIcon } from './Icons';
+import { SparklesIcon, PenIcon, CloudIcon, EyeIcon, ShareIcon, BookOpenIcon } from './Icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface EditorProps {
@@ -11,6 +11,8 @@ interface EditorProps {
   onToggleReadingMode: () => void;
   onBack: () => void;
   onToggleSidebar: () => void;
+  onOpenShare?: () => void;
+  onOpenEBookPreview?: () => void;
 }
 
 const Editor: React.FC<EditorProps> = ({
@@ -21,6 +23,8 @@ const Editor: React.FC<EditorProps> = ({
   onToggleReadingMode,
   onBack,
   onToggleSidebar,
+  onOpenShare,
+  onOpenEBookPreview,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isEditingDate, setIsEditingDate] = useState(false);
@@ -93,29 +97,61 @@ const Editor: React.FC<EditorProps> = ({
     }
   };
 
-  const hasAnalysis = !!(note.mood || note.aiSummary || note.aiReflection);
-
   return (
     <div className="flex-1 h-full overflow-y-auto bg-white dark:bg-stone-900 relative flex flex-col transition-colors duration-300">
-      {/* Floating Burger Menu button in top-left corner */}
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={onToggleSidebar}
-        className="md:hidden fixed top-4 left-4 z-30 p-2 bg-white/80 dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-full border border-stone-200/10 dark:border-stone-800/20 shadow-md backdrop-blur-md flex items-center justify-center w-10 h-10 clay-card"
-        title="Open Notes List"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </svg>
-      </motion.button>
+      {/* Floating Mobile Top Navigation Controls */}
+      <div className="md:hidden fixed top-4 inset-x-4 z-30 flex items-center justify-between pointer-events-none">
+        {/* Left: Burger Menu */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={onToggleSidebar}
+          className="pointer-events-auto p-2 bg-white/80 dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-500 dark:text-stone-400 rounded-full border border-stone-200/10 dark:border-stone-800/20 shadow-md backdrop-blur-md flex items-center justify-center w-10 h-10 clay-card"
+          title="Open Notes List"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </motion.button>
+
+        {/* Right: Mobile Share & Reading Controls */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {onOpenShare && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenShare}
+              className={`p-2 rounded-full border shadow-md backdrop-blur-md flex items-center justify-center w-10 h-10 clay-card ${
+                note.isShared
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-white/80 dark:bg-stone-900/80 border-stone-200/10 dark:border-stone-800/20 text-stone-500 dark:text-stone-400'
+              }`}
+              title="Share Read-Only Link"
+            >
+              <ShareIcon className="w-4 h-4" />
+            </motion.button>
+          )}
+
+          {onOpenEBookPreview && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onOpenEBookPreview}
+              className="p-2 bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 rounded-full shadow-md backdrop-blur-md flex items-center justify-center w-10 h-10 clay-button"
+              title="Read as E-Book"
+            >
+              <BookOpenIcon className="w-4 h-4" />
+            </motion.button>
+          )}
+        </div>
+      </div>
 
       <div className="max-w-3xl mx-auto w-full px-6 py-16 md:px-8 md:py-12 flex-1 flex flex-col relative">
         
         {/* Claymorphic Date Header */}
-        <div className="text-stone-400 dark:text-stone-500 text-sm font-mono mb-4 h-6 flex items-center">
+        <div className="text-stone-400 dark:text-stone-500 text-sm font-mono mb-4 h-6 flex items-center justify-between">
           {isEditingDate ? (
             <input
               type="date"
@@ -141,6 +177,13 @@ const Editor: React.FC<EditorProps> = ({
               })}
             </motion.span>
           )}
+
+          {note.isShared && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-sans font-semibold bg-emerald-100/60 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300/40 dark:border-emerald-800/40">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Shared E-Book Link
+            </span>
+          )}
         </div>
 
         {/* Title Input */}
@@ -158,14 +201,15 @@ const Editor: React.FC<EditorProps> = ({
           />
         )}
 
-        {/* Floating Glassmorphic / Claymorphic Toolbar */}
-        <div className="hidden md:flex items-center gap-3 mb-8 sticky top-0 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md py-3 px-4 z-10 rounded-2xl border border-stone-200/20 dark:border-stone-800/20 shadow-sm transition-all duration-300 clay-flat">
+        {/* Floating Glassmorphic / Claymorphic Desktop Toolbar */}
+        <div className="hidden md:flex items-center gap-3 mb-8 sticky top-0 bg-white/80 dark:bg-stone-900/80 backdrop-blur-md py-2.5 px-4 z-10 rounded-2xl border border-stone-200/20 dark:border-stone-800/20 shadow-sm transition-all duration-300 clay-flat">
           
+          {/* Reading Mode Button */}
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={onToggleReadingMode}
-            className={`hidden md:flex p-2.5 rounded-xl transition-all border items-center justify-center ${isReadingMode
+            className={`flex p-2.5 rounded-xl transition-all border items-center justify-center ${isReadingMode
               ? 'bg-stone-800 border-stone-800 text-white dark:bg-stone-100 dark:border-white dark:text-stone-950 shadow-sm'
               : 'bg-white dark:bg-stone-800 border-stone-200/60 dark:border-stone-700 text-stone-500 dark:text-stone-400 hover:bg-stone-50 dark:hover:bg-stone-800 shadow-sm'
               }`}
@@ -173,6 +217,39 @@ const Editor: React.FC<EditorProps> = ({
           >
             {isReadingMode ? <PenIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
           </motion.button>
+
+          {/* Share Button */}
+          {onOpenShare && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onOpenShare}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border shadow-sm ${
+                note.isShared
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300/60 dark:border-emerald-800/60'
+                  : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border-stone-200/60 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800'
+              }`}
+              title="Share read-only E-Book link"
+            >
+              <ShareIcon className="w-3.5 h-3.5" />
+              <span>{note.isShared ? 'Shared' : 'Share'}</span>
+              {note.isShared && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />}
+            </motion.button>
+          )}
+
+          {/* E-Book Reader Preview Button */}
+          {onOpenEBookPreview && (
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={onOpenEBookPreview}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200/60 dark:border-stone-700 hover:bg-stone-50 dark:hover:bg-stone-800 transition-all shadow-sm"
+              title="Preview in Mobile-First E-Book Reader"
+            >
+              <BookOpenIcon className="w-3.5 h-3.5" />
+              <span>E-Book Preview</span>
+            </motion.button>
+          )}
 
           <div className="flex-1" />
 
@@ -207,7 +284,7 @@ const Editor: React.FC<EditorProps> = ({
 
         {/* Main Content Area */}
         {isReadingMode ? (
-          <div className="w-full text-lg leading-loose text-stone-800 dark:text-stone-200 font-serif whitespace-pre-wrap pb-[40vh] leading-loose selection:bg-indigo-100 dark:selection:bg-stone-800 select-text">
+          <div className="w-full text-lg leading-loose text-stone-800 dark:text-stone-200 font-serif whitespace-pre-wrap pb-[40vh] selection:bg-indigo-100 dark:selection:bg-stone-800 select-text">
             {note.content || <span className="text-stone-350 dark:text-stone-650 italic">Write some notes to read them here...</span>}
           </div>
         ) : (

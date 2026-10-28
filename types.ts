@@ -19,6 +19,26 @@ export interface Note {
   isFavorite?: boolean;
   type?: 'journal' | 'novel';
   novelCategory?: 'chapter' | 'character' | 'location' | 'lore' | 'idea';
+  isShared?: boolean;
+  sharedAt?: number;
+  authorName?: string;
+}
+
+export interface SharedPiece {
+  id: string;
+  originalNoteId: string;
+  authorId: string;
+  authorName: string;
+  authorPhoto?: string;
+  title: string;
+  content: string;
+  type?: 'journal' | 'novel';
+  novelCategory?: 'chapter' | 'character' | 'location' | 'lore' | 'idea';
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
+  sharedAt: number;
+  theme?: string;
 }
 
 export type AIAnalysisResult = {
